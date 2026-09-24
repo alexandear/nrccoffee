@@ -63,10 +63,29 @@ sheets in that spreadsheet hold formulas in these columns.
 
 Rows are classified by their link, not by sheet name or column header: one existing sheet carries a MadHeads header over
 3champsroastery links.
+`fillStats` skips a whole sheet whose name says 3champs ("3champs", "3chmp", "3Champs"), even when it holds a MadHeads
+row or two, and drops rows linking to another shop from the sheets it does read.
+
+A row's category comes from its name, because the shop sells variants rather than categories: `madHeadsCategory`.
+"Фільтр" alone is a roast, so only "Фільтри" and Hario mean the paper filters column.
+An order's total is the number under the "Всього грн" label, and the sum of the "Сума" column on the sheets without
+that label.
+Dates live in sheet names, not in the sheets, and two sheets can carry the same date, so their counts are merged into
+one row.
+
+`sortSheets` orders the tabs newest first and keeps "Шаблон" and "Статистика MH" in front of them.
+It moves one sheet at a time and re-reads the tab order after each move, because a move renumbers everything after it.
+A hidden sheet is shown, moved and hidden again: moving a sheet goes through activating it, and a hidden sheet cannot be
+activated.
+
+`buildMonthlyChart` keeps its own table in columns O:R of "Статистика MH" and rebuilds the chart drawn over it, so the
+per-order chart stays untouched.
+That block belongs to the script alone, which is why it is the one place written with `setValues`.
 
 ## Verifying changes
 
 `MadHeads.js` can be checked from Node without mocking the shop: evaluate the file with a `UrlFetchApp` shim that shells
 out to `curl`, then assert against known cart links.
-Sheet code has no equivalent and has to be run from the spreadsheet's **Кава** menu, with errors read from the Apps
-Script execution log.
+Sheet code can be checked against the real spreadsheet without a browser: export it from Drive as `.xlsx`, read every
+sheet into a values matrix, and call `summarizeOrder` with a stub whose `getDataRange().getValues()` returns it.
+The rest has to be run from the spreadsheet's **Кава** menu, with errors read from the Apps Script execution log.
