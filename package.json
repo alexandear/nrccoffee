@@ -1,0 +1,14 @@
+{
+  "name": "coffee",
+  "private": true,
+  "description": "Apps Script for the \"NRC. Coffee\" spreadsheet",
+  "scripts": {
+    "login": "clasp login",
+    "push": "clasp push",
+    "pull": "clasp pull",
+    "open": "clasp open-script"
+  },
+  "devDependencies": {
+    "@google/clasp": "^3.4.1"
+  }
+}
