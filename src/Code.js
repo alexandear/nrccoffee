@@ -287,7 +287,9 @@ function writeMonthlyTable(sheet, months) {
   for (let i = 0; i < months.length; i++) {
     rows.push([months[i].month, months[i].coffee, months[i].drip, months[i].sum]);
   }
-  sheet.getRange(1, MONTHLY_COLUMN, sheet.getMaxRows(), rows[0].length).clearContent();
+  // An empty cell keeps its formatting, and this corner of the sheet carries a date format left
+  // over from an older table, which turns 51 packs into a day in 1900 and breaks the chart.
+  sheet.getRange(1, MONTHLY_COLUMN, sheet.getMaxRows(), rows[0].length).clear();
   // "12.2025" is a number to a spreadsheet, and a date to some locales, so the column stays text.
   sheet.getRange(1, MONTHLY_COLUMN, sheet.getMaxRows(), 1).setNumberFormat('@');
   sheet.getRange(1, MONTHLY_COLUMN, rows.length, rows[0].length).setValues(rows);

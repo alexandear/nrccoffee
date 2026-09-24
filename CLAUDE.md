@@ -80,7 +80,12 @@ activated.
 
 `buildMonthlyChart` keeps its own table in columns O:R of "Статистика MH" and rebuilds the chart drawn over it, so the
 per-order chart stays untouched.
-That block belongs to the script alone, which is why it is the one place written with `setValues`.
+That block belongs to the script alone, which is why it is the one place written with `setValues`, and why it is
+cleared with `clear` rather than `clearContent`: an empty cell keeps its formatting, and column P of that sheet came
+with a date format that turned 51 packs into a day in 1900.
+Dates and months are written into cells forced to text with `setNumberFormat('@')`, because a written string is parsed
+the way typing it would be: 05.12.2022 is the fifth of December or the twelfth of May depending on the locale, and
+"12.2025" is a number.
 
 ## Verifying changes
 
