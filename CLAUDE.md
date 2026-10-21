@@ -57,6 +57,10 @@ Columns are located by header text rather than by letter, because sheets differ 
 Обсмаження in older).
 The header row is searched for in the first 10 rows.
 
+`fillActiveSheet` leaves a row alone and lists it in its report when a filled-in name, roast or grind disagrees with
+the variant its link points at: only a person can tell whether the link or the cell is wrong.
+The price is not compared, because it changes over time and refreshing it is the point.
+
 Cells are written one at a time on purpose.
 Writing whole columns with `setValues` would replace formulas in untouched rows with their computed values, and several
 sheets in that spreadsheet hold formulas in these columns.

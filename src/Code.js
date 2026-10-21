@@ -28,6 +28,7 @@ function fillActiveSheet() {
 
   const cache = {};
   const errors = [];
+  const warnings = [];
   let fetches = 0;
   let filled = 0;
   let foreign = 0;
@@ -46,6 +47,11 @@ function fillActiveSheet() {
         cache[link] = madHeadsItem(link);
       }
       const item = cache[link];
+      const differs = mismatches(values[row], columns, item);
+      if (differs.length) {
+        warnings.push('рядок ' + (row + 1) + ': ' + differs.join(', '));
+        continue;
+      }
       // One cell at a time, so that columns this script does not own keep their formulas.
       sheet.getRange(row + 1, columns.name + 1).setValue(item.name);
       sheet.getRange(row + 1, columns.roast + 1).setValue(item.roast);
@@ -63,8 +69,27 @@ function fillActiveSheet() {
   }
 
   const report = 'Заповнено рядків: ' + filled +
-    (foreign ? '\nПропущено посилань інших магазинів: ' + foreign : '');
-  SpreadsheetApp.getUi().alert(errors.length ? report + '\n\nПомилки:\n' + errors.join('\n') : report);
+    (foreign ? '\nПропущено посилань інших магазинів: ' + foreign : '') +
+    (warnings.length ? '\n\nНе збігається з посиланням, рядок не змінено:\n' + warnings.join('\n') : '') +
+    (errors.length ? '\n\nПомилки:\n' + errors.join('\n') : '');
+  SpreadsheetApp.getUi().alert(report);
+}
+
+/**
+ * Filled-in cells that disagree with the variant the link points at, e.g. 'Помел "V-60" ≠ "у зерні"'.
+ * The link is what gets ordered, so a row like that is a typo in one or the other, and only a person can tell which.
+ */
+function mismatches(row, columns, item) {
+  const checked = [['Назва', columns.name, item.name], ['Обсмажка', columns.roast, item.roast],
+    ['Помел', columns.grind, item.grind]];
+  const differs = [];
+  for (let i = 0; i < checked.length; i++) {
+    const current = String(row[checked[i][1]]).trim();
+    if (current && normalize(current) !== normalize(checked[i][2])) {
+      differs.push(checked[i][0] + ' "' + current + '" ≠ "' + checked[i][2] + '"');
+    }
+  }
+  return differs;
 }
 
 function findHeaderRow(values) {
