@@ -87,11 +87,21 @@ function mismatches(row, columns, item) {
     const current = String(row[checked[i][1]]).trim();
     // Older sheets mark a drip's roast and grind as "дріпи", where the shop has a roast and no grind.
     if (normalize(current) === 'дріпи' && item.grind === '-') continue;
-    if (current && normalize(current) !== normalize(checked[i][2])) {
+    if (current && !sameWords(current, checked[i][2])) {
       differs.push(checked[i][0] + ' "' + current + '" ≠ "' + checked[i][2] + '"');
     }
   }
   return differs;
+}
+
+/** True for the same words in any order: older sheets put "Easy Drip" first, the shop puts it last. */
+function sameWords(first, second) {
+  return words(first) === words(second);
+}
+
+function words(text) {
+  // "Easy Drip  KENYA" -> "drip easy kenya"
+  return normalize(text).split(/\s+/).sort().join(' ');
 }
 
 function findHeaderRow(values) {
