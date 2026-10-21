@@ -53,10 +53,11 @@ function fillActiveSheet() {
         continue;
       }
       // One cell at a time, so that columns this script does not own keep their formulas.
-      sheet.getRange(row + 1, columns.name + 1).setValue(item.name);
-      sheet.getRange(row + 1, columns.roast + 1).setValue(item.roast);
-      sheet.getRange(row + 1, columns.grind + 1).setValue(item.grind);
-      sheet.getRange(row + 1, columns.price + 1).setValue(item.price);
+      const line = row + 1;
+      sheet.getRange(line, columns.name + 1).setValue(item.name);
+      if (!isDripMark(values[row][columns.roast], item)) sheet.getRange(line, columns.roast + 1).setValue(item.roast);
+      if (!isDripMark(values[row][columns.grind], item)) sheet.getRange(line, columns.grind + 1).setValue(item.grind);
+      sheet.getRange(line, columns.price + 1).setValue(item.price);
       filled++;
     } catch (error) {
       errors.push('рядок ' + (row + 1) + ': ' + error.message);
@@ -85,13 +86,17 @@ function mismatches(row, columns, item) {
   const differs = [];
   for (let i = 0; i < checked.length; i++) {
     const current = String(row[checked[i][1]]).trim();
-    // Older sheets mark a drip's roast and grind as "дріпи", where the shop has a roast and no grind.
-    if (normalize(current) === 'дріпи' && item.grind === '-') continue;
+    if (isDripMark(current, item)) continue;
     if (current && !sameWords(current, checked[i][2])) {
       differs.push(checked[i][0] + ' "' + current + '" ≠ "' + checked[i][2] + '"');
     }
   }
   return differs;
+}
+
+/** Older sheets mark a drip's roast and grind as "дріпи", where the shop has a roast and no grind. */
+function isDripMark(cell, item) {
+  return normalize(cell) === 'дріпи' && item.grind === '-';
 }
 
 /** True for the same words in any order: older sheets put "Easy Drip" first, the shop puts it last. */

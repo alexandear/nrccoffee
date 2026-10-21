@@ -60,7 +60,8 @@ The header row is searched for in the first 10 rows.
 `fillActiveSheet` leaves a row alone and lists it in its report when a filled-in name, roast or grind disagrees with
 the variant its link points at: only a person can tell whether the link or the cell is wrong.
 Cells are compared by their words in any order, since older sheets put "Easy Drip" first and the shop puts it last.
-"дріпи" in a drip's roast or grind cell is how older sheets mark a drip, so it matches any drip variant.
+"дріпи" in a drip's roast or grind cell is how older sheets mark a drip, so it matches any drip variant and is
+kept rather than overwritten.
 The price is not compared, because it changes over time and refreshing it is the point.
 
 Cells are written one at a time on purpose.
