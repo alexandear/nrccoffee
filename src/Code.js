@@ -31,12 +31,12 @@ function fillActiveSheet() {
   const warnings = [];
   let fetches = 0;
   let filled = 0;
-  let foreign = 0;
+  const foreign = [];
 
   for (let row = headerRow + 1; row < values.length; row++) {
     const link = String(values[row][columns.link]).trim();
     if (!madHeadsSlug(link)) {
-      if (link) foreign++;
+      if (link) foreign.push(row + 1);
       continue;
     }
 
@@ -64,13 +64,13 @@ function fillActiveSheet() {
     }
   }
 
-  if (!filled && foreign) {
+  if (!filled && foreign.length) {
     SpreadsheetApp.getUi().alert('Посилань MadHeads не знайдено. Інші магазини поки не підтримуються.');
     return;
   }
 
   const report = 'Заповнено рядків: ' + filled +
-    (foreign ? '\nПропущено посилань інших магазинів: ' + foreign : '') +
+    (foreign.length ? '\nПропущено посилань інших магазинів, рядки: ' + foreign.join(', ') : '') +
     (warnings.length ? '\n\nНе збігається з посиланням, рядок не змінено:\n' + warnings.join('\n') : '') +
     (errors.length ? '\n\nПомилки:\n' + errors.join('\n') : '');
   SpreadsheetApp.getUi().alert(report);
