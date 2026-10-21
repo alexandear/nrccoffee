@@ -9,10 +9,11 @@ npm run push   # local src/ -> the bound Apps Script project (overwrites remote 
 npm run pull   # remote -> src/
 npm run open   # open the project in the Apps Script IDE
 npx clasp show-file-status   # which files a push would upload
+npm test       # unit tests in test/, run by node:test
 ```
 
 `push` replaces remote files wholesale, so pull first if anyone edited the script in the browser.
-There is no build, no lint and no test runner; `typos` is the spell check.
+There is no build and no lint; `typos` is the spell check.
 
 ## Style
 
@@ -96,6 +97,11 @@ the way typing it would be: 05.12.2022 is the fifth of December or the twelfth o
 "12.2025" is a number.
 
 ## Verifying changes
+
+`npm test` runs `test/*.test.js` with `node:test` and no dependencies.
+`test/apps-script.js` evaluates `src/` into one global scope, as Apps Script does, and stands in for `SpreadsheetApp`,
+`UrlFetchApp` and `Charts` with in-memory sheets and a shop that serves `__data.json` from fixtures.
+`test/` sits outside `rootDir`, so clasp never pushes it.
 
 `MadHeads.js` can be checked from Node without mocking the shop: evaluate the file with a `UrlFetchApp` shim that shells
 out to `curl`, then assert against known cart links.

@@ -6,7 +6,8 @@
     "login": "clasp login",
     "push": "clasp push",
     "pull": "clasp pull",
-    "open": "clasp open-script"
+    "open": "clasp open-script",
+    "test": "node --test"
   },
   "devDependencies": {
     "@google/clasp": "^3.4.1"
