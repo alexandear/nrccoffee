@@ -85,6 +85,8 @@ function mismatches(row, columns, item) {
   const differs = [];
   for (let i = 0; i < checked.length; i++) {
     const current = String(row[checked[i][1]]).trim();
+    // Older sheets mark a drip's roast and grind as "дріпи", where the shop has a roast and no grind.
+    if (normalize(current) === 'дріпи' && item.grind === '-') continue;
     if (current && normalize(current) !== normalize(checked[i][2])) {
       differs.push(checked[i][0] + ' "' + current + '" ≠ "' + checked[i][2] + '"');
     }
