@@ -56,6 +56,7 @@ The price is always `price_wholesale`, never `price_retail`.
 Columns are located by header text rather than by letter, because sheets differ between orders (Обсмажка in newer ones,
 Обсмаження in older).
 The header row is searched for in the first 10 rows.
+`fillActiveSheet` starts at row 4 even when the header is row 1, because rows 2 and 3 are not orders.
 
 `fillActiveSheet` leaves a row alone and lists it in its report when a filled-in name, roast or grind disagrees with
 the variant its link points at: only a person can tell whether the link or the cell is wrong.

@@ -1,6 +1,9 @@
 /** Fetches per run, so one run stays well inside the 6 minute limit. */
 const MAX_FETCHES = 60;
 
+/** Sheet row of the first order line: rows 2 and 3 sit under the header but are not orders. */
+const FIRST_ORDER_ROW = 4;
+
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Кава')
@@ -33,7 +36,7 @@ function fillActiveSheet() {
   let filled = 0;
   const foreign = [];
 
-  for (let row = headerRow + 1; row < values.length; row++) {
+  for (let row = Math.max(headerRow + 1, FIRST_ORDER_ROW - 1); row < values.length; row++) {
     const link = String(values[row][columns.link]).trim();
     if (!madHeadsSlug(link)) {
       if (link) foreign.push(row + 1);
