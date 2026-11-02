@@ -59,12 +59,15 @@ Columns are located by header text rather than by letter, because sheets differ 
 The header row is searched for in the first 10 rows.
 `fillActiveSheet` starts at row 4 even when the header is row 1, because rows 2 and 3 are not orders.
 
-`fillActiveSheet` leaves a row alone and lists it in its report when a filled-in name, roast or grind disagrees with
-the variant its link points at: only a person can tell whether the link or the cell is wrong.
+`fillActiveSheet` writes a cell only when it is empty: a filled-in cell is someone's own entry, and the script reports
+it rather than replacing it.
+It leaves the whole row alone and lists it in its report when a filled-in name, roast or grind disagrees with the
+variant its link points at: only a person can tell whether the link or the cell is wrong.
 Cells are compared by their words in any order, since older sheets put "Easy Drip" first and the shop puts it last.
-"дріпи" in a drip's roast or grind cell is how older sheets mark a drip, so it matches any drip variant and is
-kept rather than overwritten.
-The price is not compared, because it changes over time and refreshing it is the point.
+"дріпи" in a drip's roast or grind cell is how older sheets mark a drip, so it matches any drip variant and counts as
+agreeing with it.
+A filled-in price that the shop no longer charges is reported on its own, without holding the row's empty cells back:
+the price changes over time, and the cell may be the price that was paid.
 
 Cells are written one at a time on purpose.
 Writing whole columns with `setValues` would replace formulas in untouched rows with their computed values, and several

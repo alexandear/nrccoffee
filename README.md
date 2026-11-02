@@ -50,7 +50,8 @@ spreadsheet.
 
 `Code.js` adds a **Кава** menu with one item, *Заповнити з посилань*.
 It works on the active sheet: it finds the header row, then for every row holding a MadHeads cart link
-(`https://madheadscoffee.com/p/<slug>`) it writes Назва, Обсмажка, Помел and Ціна, грн.
+(`https://madheadscoffee.com/p/<slug>`) it fills the empty Назва, Обсмажка, Помел and Ціна, грн cells.
+A cell that is already filled in is kept, and reported when it disagrees with the link.
 A row pointing at another shop, 3champsroastery among them, is left alone, and so is every column the script does not
 own, because cells are written one at a time.
 One run fetches at most 60 products.

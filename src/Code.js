@@ -15,7 +15,7 @@ function onOpen() {
 }
 
 /**
- * Fills "Назва", "Обсмажка", "Помел" and "Ціна, грн" on the active sheet
+ * Fills the empty "Назва", "Обсмажка", "Помел" and "Ціна, грн" cells on the active sheet
  * from every MadHeads cart link in the "Посилання..." column.
  */
 function fillActiveSheet() {
@@ -32,8 +32,10 @@ function fillActiveSheet() {
   const cache = {};
   const errors = [];
   const warnings = [];
+  const prices = [];
   let fetches = 0;
   let filled = 0;
+  let madHeads = 0;
   const foreign = [];
 
   for (let row = Math.max(headerRow + 1, FIRST_ORDER_ROW - 1); row < values.length; row++) {
@@ -42,6 +44,7 @@ function fillActiveSheet() {
       if (link) foreign.push(row + 1);
       continue;
     }
+    madHeads++;
 
     try {
       if (!cache[link]) {
@@ -55,25 +58,37 @@ function fillActiveSheet() {
         warnings.push('рядок ' + (row + 1) + ': ' + differs.join(', '));
         continue;
       }
-      // One cell at a time, so that columns this script does not own keep their formulas.
       const line = row + 1;
-      sheet.getRange(line, columns.name + 1).setValue(item.name);
-      if (!isDripMark(values[row][columns.roast], item)) sheet.getRange(line, columns.roast + 1).setValue(item.roast);
-      if (!isDripMark(values[row][columns.grind], item)) sheet.getRange(line, columns.grind + 1).setValue(item.grind);
-      sheet.getRange(line, columns.price + 1).setValue(item.price);
-      filled++;
+      // The price is reported rather than refreshed, because the cell may be the price that was paid.
+      const price = String(values[row][columns.price]).trim();
+      if (price && Number(price) !== item.price) {
+        prices.push('рядок ' + line + ': ' + price + ' ≠ ' + item.price);
+      }
+
+      // A cell someone filled in is kept, so only the blanks are written, and one at a time,
+      // so that columns this script does not own keep their formulas.
+      const blanks = [[columns.name, item.name], [columns.roast, item.roast],
+        [columns.grind, item.grind], [columns.price, item.price]];
+      let wrote = 0;
+      for (let i = 0; i < blanks.length; i++) {
+        if (String(values[row][blanks[i][0]]).trim()) continue;
+        sheet.getRange(line, blanks[i][0] + 1).setValue(blanks[i][1]);
+        wrote++;
+      }
+      if (wrote) filled++;
     } catch (error) {
       errors.push('рядок ' + (row + 1) + ': ' + error.message);
     }
   }
 
-  if (!filled && foreign.length) {
+  if (!madHeads && foreign.length) {
     SpreadsheetApp.getUi().alert('Посилань MadHeads не знайдено. Інші магазини поки не підтримуються.');
     return;
   }
 
   const report = 'Заповнено рядків: ' + filled +
     (foreign.length ? '\nПропущено посилань інших магазинів, рядки: ' + foreign.join(', ') : '') +
+    (prices.length ? '\n\nЦіна змінилася, комірку не змінено:\n' + prices.join('\n') : '') +
     (warnings.length ? '\n\nНе збігається з посиланням, рядок не змінено:\n' + warnings.join('\n') : '') +
     (errors.length ? '\n\nПомилки:\n' + errors.join('\n') : '');
   SpreadsheetApp.getUi().alert(report);

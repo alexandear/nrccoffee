@@ -32,39 +32,34 @@ test('onOpen adds the Кава menu', () => {
 });
 
 test('fillActiveSheet', async (t) => {
-  await t.test('fills from links and reports what it left alone', () => {
-    const sheet = new FakeSheet('21.12.2025', [
+  await t.test('fills the blanks and reports what it left alone', () => {
+    const rows = [
       ORDER_HEADER,
       [BEANS_LINK, '', '', '', 1, '', 'not an order'],
       ['', '', '', '', '', '', ''],
       [BEANS_LINK, '', '', '', 2, 400, '=E4*F4'],
       [DRIP_LINK, 'Easy Drip ETHIOPIA Biloya Oro Gr.1', 'дріпи', 'дріпи', 1, 250, '=E5*F5'],
       [BEANS_LINK, 'ETHIOPIA Biloya Oro Gr.1', 'Фільтр', 'V-60', 1, 400, '=E6*F6'],
+      [BEANS_LINK, 'ETHIOPIA Biloya Oro Gr.1', 'Фільтр', 'у зерні', 1, 450, '=E7*F7'],
       [OTHER_LINK, 'Kenya', '', '', 1, '', ''],
       ['https://madheadscoffee.com/p/gone', '', '', '', 1, '', ''],
-    ]);
+    ];
+    const sheet = new FakeSheet('21.12.2025', rows.map((row) => [...row]));
     const { ui } = useSpreadsheet([sheet]);
     const fetched = useShop([BEANS, DRIP]);
 
     fillActiveSheet();
 
-    assert.deepEqual(sheet.values, [
-      ORDER_HEADER,
-      [BEANS_LINK, '', '', '', 1, '', 'not an order'],
-      ['', '', '', '', '', '', ''],
-      [BEANS_LINK, 'ETHIOPIA Biloya Oro Gr.1', 'фільтр', 'у зерні', 2, 450, '=E4*F4'],
-      [DRIP_LINK, 'ETHIOPIA Biloya Oro Gr.1 Easy Drip', 'дріпи', 'дріпи', 1, 300, '=E5*F5'],
-      [BEANS_LINK, 'ETHIOPIA Biloya Oro Gr.1', 'Фільтр', 'V-60', 1, 400, '=E6*F6'],
-      [OTHER_LINK, 'Kenya', '', '', 1, '', ''],
-      ['https://madheadscoffee.com/p/gone', '', '', '', 1, '', ''],
-    ]);
-    assert.deepEqual(sheet.writes.map(([row, column]) => [row, column]),
-      [[4, 2], [4, 3], [4, 4], [4, 6], [5, 2], [5, 6]]);
+    const filled = rows.map((row) => [...row]);
+    filled[3] = [BEANS_LINK, 'ETHIOPIA Biloya Oro Gr.1', 'фільтр', 'у зерні', 2, 400, '=E4*F4'];
+    assert.deepEqual(sheet.values, filled, 'only the empty cells are written');
+    assert.deepEqual(sheet.writes.map(([row, column]) => [row, column]), [[4, 2], [4, 3], [4, 4]]);
     assert.equal(fetched.length, 3, 'a repeated link is fetched once');
-    assert.deepEqual(ui.alerts, ['Заповнено рядків: 2' +
-      '\nПропущено посилань інших магазинів, рядки: 7' +
+    assert.deepEqual(ui.alerts, ['Заповнено рядків: 1' +
+      '\nПропущено посилань інших магазинів, рядки: 8' +
+      '\n\nЦіна змінилася, комірку не змінено:\nрядок 4: 400 ≠ 450\nрядок 5: 250 ≠ 300' +
       '\n\nНе збігається з посиланням, рядок не змінено:\nрядок 6: Помел "V-60" ≠ "у зерні"' +
-      '\n\nПомилки:\nрядок 8: 404 from https://madheadscoffee.com/p/gone/__data.json']);
+      '\n\nПомилки:\nрядок 9: 404 from https://madheadscoffee.com/p/gone/__data.json']);
   });
 
   await t.test('a lower header row is followed by orders right away', () => {
@@ -152,7 +147,7 @@ test('mismatches', async (t) => {
       ['Обсмажка "дріпи" ≠ "фільтр"']);
   });
 
-  await t.test('the price is not compared', () => {
+  await t.test('the price is not one of the compared cells', () => {
     assert.deepEqual(mismatches([BEANS_LINK, '', '', '', 1, 999], COLUMNS, BEANS_ITEM), []);
   });
 });
