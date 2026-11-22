@@ -301,7 +301,7 @@ function addOrders(order, other) {
 
 const MONTHLY_CHART_TITLE = 'Замовлення Madheads за місяць';
 
-/** First column of the monthly table, right of the "Всього..." totals. */
+/** First column of the monthly table, right of the per-order columns. */
 const MONTHLY_COLUMN = 15;
 
 /** Rebuilds the monthly table and the chart over it, below the charts already on the sheet. */
