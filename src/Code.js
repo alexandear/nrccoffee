@@ -170,7 +170,20 @@ const SHEET_DATE = /(\d{1,2})\.(\d{1,2})\.(\d{4})/;
 /** A sheet of the other shop, e.g. "27.11.2025 3champs ✅" or "08.09.2026 (3chmp) ✅". */
 const OTHER_SHOP_SHEET = /3\s*ch/i;
 
-/** Appends a row per order sheet that "Статистика MH" does not list yet, oldest first. */
+/** Category of each "грн" column of "Статистика MH", from column H on, and its header. */
+const STATS_MONEY = [
+  ['coffee', 'Кава, грн'],
+  ['drip', 'Дріпи, грн'],
+  ['tonic', 'Coffee Tonic, грн'],
+  ['black', 'Black Coffee, грн'],
+  ['filter', 'Фільтри V60, грн'],
+];
+const STATS_MONEY_COLUMN = 8;
+
+/**
+ * Appends a row per order sheet that "Статистика MH" does not list yet, oldest first,
+ * and fills the empty "грн" cells of the rows it already lists.
+ */
 function fillStats() {
   const stats = SpreadsheetApp.getActive().getSheetByName(STATS_SHEET);
   if (!stats) {
@@ -178,48 +191,70 @@ function fillStats() {
     return;
   }
 
-  const listed = {};
-  const dates = stats.getRange(1, 1, stats.getLastRow(), 1).getValues();
-  for (let row = 0; row < dates.length; row++) {
-    listed[normalizeDate(dates[row][0])] = true;
-  }
-
   // Two sheets can carry the same date, and the statistics keeps one row per date.
-  const missing = {};
+  const orders = {};
   const sheets = SpreadsheetApp.getActive().getSheets();
   for (let i = 0; i < sheets.length; i++) {
     const name = sheets[i].getName();
     const date = sheetDate(name);
-    if (!date || listed[date] || OTHER_SHOP_SHEET.test(name)) continue;
+    if (!date || OTHER_SHOP_SHEET.test(name)) continue;
     const order = summarizeOrder(sheets[i]);
     if (!order) continue;
-    missing[date] = missing[date] ? addOrders(missing[date], order) : order;
+    orders[date] = orders[date] ? addOrders(orders[date], order) : order;
   }
 
-  const ordered = Object.keys(missing).sort(function (a, b) {
-    return sortableDate(a) < sortableDate(b) ? -1 : 1;
-  });
+  const lastColumn = STATS_MONEY_COLUMN + STATS_MONEY.length - 1;
+  const values = stats.getRange(1, 1, stats.getLastRow(), lastColumn).getValues();
+  for (let i = 0; i < STATS_MONEY.length; i++) {
+    if (values[0][STATS_MONEY_COLUMN - 1 + i] === '') {
+      stats.getRange(1, STATS_MONEY_COLUMN + i).setValue(STATS_MONEY[i][1]);
+    }
+  }
+
+  const listed = {};
+  let completed = 0;
+  for (let row = 0; row < values.length; row++) {
+    const date = normalizeDate(values[row][0]);
+    listed[date] = true;
+    if (!orders[date]) continue;
+    let written = 0;
+    for (let i = 0; i < STATS_MONEY.length; i++) {
+      if (values[row][STATS_MONEY_COLUMN - 1 + i] !== '') continue;
+      stats.getRange(row + 1, STATS_MONEY_COLUMN + i).setValue(orders[date][STATS_MONEY[i][0] + 'Sum']);
+      written++;
+    }
+    if (written) completed++;
+  }
+
+  const missing = Object.keys(orders).filter(function (date) { return !listed[date]; });
+  missing.sort(function (a, b) { return sortableDate(a) < sortableDate(b) ? -1 : 1; });
 
   let row = stats.getLastRow();
-  for (let i = 0; i < ordered.length; i++) {
-    const order = missing[ordered[i]];
+  for (let i = 0; i < missing.length; i++) {
+    const order = orders[missing[i]];
     row++;
     // One cell at a time, so that columns this script does not own keep their formulas.
     // "Дата" is day.month.year text, and a written date is parsed in the spreadsheet's locale,
     // which reads 05.12.2022 as the fifth of December or as the twelfth of May depending on it.
-    stats.getRange(row, 1).setNumberFormat('@').setValue(ordered[i]);
+    stats.getRange(row, 1).setNumberFormat('@').setValue(missing[i]);
     stats.getRange(row, 2).setValue(order.coffee);
     stats.getRange(row, 3).setValue(order.drip);
     stats.getRange(row, 4).setValue(order.tonic);
     stats.getRange(row, 5).setValue(order.black);
     stats.getRange(row, 6).setValue(order.filter);
     stats.getRange(row, 7).setValue(order.sum);
+    for (let j = 0; j < STATS_MONEY.length; j++) {
+      stats.getRange(row, STATS_MONEY_COLUMN + j).setValue(order[STATS_MONEY[j][0] + 'Sum']);
+    }
   }
 
-  SpreadsheetApp.getUi().alert('Додано рядків: ' + ordered.length);
+  SpreadsheetApp.getUi().alert('Додано рядків: ' + missing.length + '\nДоповнено рядків: ' + completed);
 }
 
-/** Counts per category and the order total, or null when the sheet is not a MadHeads order. */
+/**
+ * Counts and "Сума" per category and the order total, or null when the sheet is not a MadHeads order.
+ * The order total can be less than its categories together: "Всього грн" holds the price after a discount.
+ */
 function summarizeOrder(sheet) {
   const values = sheet.getDataRange().getValues();
   const headerRow = findHeaderRow(values);
@@ -232,7 +267,10 @@ function summarizeOrder(sheet) {
   const sum = indexOfHeader(header, function (cell) { return cell === 'сума'; });
   if (quantity < 0 || sum < 0) return null;
 
-  const order = { coffee: 0, drip: 0, tonic: 0, black: 0, filter: 0, sum: 0 };
+  const order = {
+    coffee: 0, drip: 0, tonic: 0, black: 0, filter: 0, sum: 0,
+    coffeeSum: 0, dripSum: 0, tonicSum: 0, blackSum: 0, filterSum: 0,
+  };
   let counted = 0;
   let foreign = 0;
   for (let row = headerRow + 1; row < values.length; row++) {
@@ -244,8 +282,12 @@ function summarizeOrder(sheet) {
       foreign++;
       continue;
     }
-    order[madHeadsCategory(title, url)] += values[row][quantity];
-    if (typeof values[row][sum] === 'number') order.sum += values[row][sum];
+    const category = madHeadsCategory(title, url);
+    order[category] += values[row][quantity];
+    if (typeof values[row][sum] === 'number') {
+      order.sum += values[row][sum];
+      order[category + 'Sum'] += values[row][sum];
+    }
     counted++;
   }
   if (!counted) return null;
@@ -358,7 +400,8 @@ function writeMonthlyTable(sheet, months) {
 function replaceMonthlyChart(sheet, months) {
   const charts = sheet.getCharts();
   let anchorRow = 2;
-  let anchorColumn = 9;
+  // Right of the monthly table, so that the chart covers none of the per-order columns.
+  let anchorColumn = MONTHLY_COLUMN + 5;
   for (let i = 0; i < charts.length; i++) {
     if (String(charts[i].getOptions().get('title')) === MONTHLY_CHART_TITLE) {
       sheet.removeChart(charts[i]);

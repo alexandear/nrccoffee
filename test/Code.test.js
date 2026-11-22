@@ -188,6 +188,7 @@ test('isLinkHeader, indexOfHeader and normalize', () => {
 });
 
 const STATS_HEADER = ['Дата', 'Кава', 'Дріпи', 'Тонік', 'Блек', 'Фільтри', 'Сума'];
+const MONEY_HEADER = ['Кава, грн', 'Дріпи, грн', 'Coffee Tonic, грн', 'Black Coffee, грн', 'Фільтри V60, грн'];
 
 function orderSheet(name, rows) {
   return new FakeSheet(name, [['Посилання', 'Назва', 'Кількість', 'Сума'], ...rows]);
@@ -197,8 +198,9 @@ test('fillStats', async (t) => {
   await t.test('appends the missing dates oldest first and merges sheets of one date', () => {
     const stats = new FakeSheet('Статистика MH', [
       STATS_HEADER,
+      ['', '=SUM(B3:B300)'],
       ['21.12.2025', 1, 0, 0, 0, 0, 450],
-      [new Date(2025, 0, 5), 2, 0, 0, 0, 0, 900],
+      [new Date(2025, 0, 5), 2, 0, 0, 0, 0, 900, 777],
     ]);
     const { ui } = useSpreadsheet([
       stats,
@@ -214,21 +216,28 @@ test('fillStats', async (t) => {
 
     fillStats();
 
-    assert.deepEqual(stats.values.slice(3), [
-      ['01.02.2026', 0, 0, 0, 4, 1, 1000],
-      ['09.04.2026', 2, 10, 3, 0, 0, 4500],
+    assert.deepEqual(stats.values, [
+      [...STATS_HEADER, ...MONEY_HEADER],
+      ['', '=SUM(B3:B300)'],
+      ['21.12.2025', 1, 0, 0, 0, 0, 450, 5, 0, 0, 0, 0],
+      [new Date(2025, 0, 5), 2, 0, 0, 0, 0, 900, 777, 0, 0, 0, 0],
+      ['01.02.2026', 0, 0, 0, 4, 1, 1000, 0, 0, 0, 800, 200],
+      ['09.04.2026', 2, 10, 3, 0, 0, 4500, 900, 3000, 600, 0, 0],
     ]);
-    assert.equal(stats.formats['4,1'], '@');
     assert.equal(stats.formats['5,1'], '@');
-    assert.deepEqual(ui.alerts, ['Додано рядків: 2']);
+    assert.equal(stats.formats['6,1'], '@');
+    assert.deepEqual(ui.alerts, ['Додано рядків: 2\nДоповнено рядків: 2']);
   });
 
   await t.test('nothing to add', () => {
-    const stats = new FakeSheet('Статистика MH', [STATS_HEADER, ['21.12.2025', 1, 0, 0, 0, 0, 450]]);
+    const stats = new FakeSheet('Статистика MH', [
+      [...STATS_HEADER, ...MONEY_HEADER],
+      ['21.12.2025', 1, 0, 0, 0, 0, 450, 450, 0, 0, 0, 0],
+    ]);
     const { ui } = useSpreadsheet([stats, orderSheet('21.12.2025', [[BEANS_LINK, 'Kenya', 1, 1]])]);
     fillStats();
-    assert.equal(stats.values.length, 2);
-    assert.deepEqual(ui.alerts, ['Додано рядків: 0']);
+    assert.deepEqual(stats.writes, []);
+    assert.deepEqual(ui.alerts, ['Додано рядків: 0\nДоповнено рядків: 0']);
   });
 
   await t.test('no statistics sheet', () => {
@@ -251,7 +260,10 @@ test('summarizeOrder', async (t) => {
       ['', '', 5, 100],
       ['', 'Всього', '', 9999],
     ]);
-    assert.deepEqual(summarizeOrder(sheet), { coffee: 3, drip: 10, tonic: 3, black: 1, filter: 1, sum: 4800 });
+    assert.deepEqual(summarizeOrder(sheet), {
+      coffee: 3, drip: 10, tonic: 3, black: 1, filter: 1, sum: 4800,
+      coffeeSum: 900, dripSum: 3000, tonicSum: 600, blackSum: 200, filterSum: 100,
+    });
   });
 
   await t.test('"Всього грн" overrides the Сума column', () => {
@@ -260,6 +272,7 @@ test('summarizeOrder', async (t) => {
       [BEANS_LINK, 'Kenya', 2, 900, '', 850],
     ]);
     assert.equal(summarizeOrder(sheet).sum, 850);
+    assert.equal(summarizeOrder(sheet).coffeeSum, 900);
   });
 
   await t.test('rows of another shop are dropped along with the hand-kept total', () => {
@@ -268,7 +281,10 @@ test('summarizeOrder', async (t) => {
       [BEANS_LINK, 'Kenya', 2, 900, 2000],
       [OTHER_LINK, 'Kenya', 3, 1100],
     ]);
-    assert.deepEqual(summarizeOrder(sheet), { coffee: 2, drip: 0, tonic: 0, black: 0, filter: 0, sum: 900 });
+    assert.deepEqual(summarizeOrder(sheet), {
+      coffee: 2, drip: 0, tonic: 0, black: 0, filter: 0, sum: 900,
+      coffeeSum: 900, dripSum: 0, tonicSum: 0, blackSum: 0, filterSum: 0,
+    });
   });
 
   await t.test('not an order', () => {
@@ -390,11 +406,11 @@ test('buildMonthlyChart', async (t) => {
     assert.deepEqual(ui.alerts, ['Місяців у графіку: 3']);
   });
 
-  await t.test('the first chart on a sheet goes to I2', () => {
+  await t.test('the first chart on a sheet goes right of the monthly table', () => {
     const stats = new FakeSheet('Статистика MH', [STATS_HEADER, ['15.11.2025', 2, 10, 0, 0, 0, 1000]]);
     useSpreadsheet([stats]);
     buildMonthlyChart();
-    assert.deepEqual([stats.charts[0].anchorRow, stats.charts[0].anchorColumn], [2, 9]);
+    assert.deepEqual([stats.charts[0].anchorRow, stats.charts[0].anchorColumn], [2, 20]);
   });
 
   await t.test('an empty or missing statistics sheet', () => {
