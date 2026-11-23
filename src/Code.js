@@ -12,7 +12,8 @@ function onOpen() {
       .createMenu('Оновити статистику MH')
       .addItem('2026', 'fillStats2026')
       .addItem('2025', 'fillStats2025')
-      .addItem('2024', 'fillStats2024'))
+      .addItem('2024', 'fillStats2024')
+      .addItem('2023: лише виконавці', 'fillStats2023'))
     .addItem('Впорядкувати аркуші', 'sortSheets')
     .addToUi();
 }
@@ -183,23 +184,25 @@ const STATS_MONEY = [
 ];
 const STATS_MONEY_COLUMN = 8;
 
-/** Rows of earlier years are kept by hand, and the script leaves them alone. */
+/** Rows of earlier years are kept by hand, and the script leaves them alone but for their "Виконавець". */
 const FIRST_STATS_YEAR = 2024;
 
 /** "Виконавець" of "Статистика MH", right of the "грн" columns, is filled from this year on. */
 const EXECUTOR_COLUMN = STATS_MONEY_COLUMN + STATS_MONEY.length;
 const EXECUTOR_HEADER = 'Виконавець';
-const FIRST_EXECUTOR_YEAR = 2026;
+const FIRST_EXECUTOR_YEAR = 2023;
 
 // A menu item calls a function by name, without arguments, so each year needs its own.
 // One year at a time, because every order sheet together does not fit in the 6 minute limit.
 function fillStats2026() { fillStats(2026); }
 function fillStats2025() { fillStats(2025); }
 function fillStats2024() { fillStats(2024); }
+function fillStats2023() { fillStats(2023); }
 
 /**
  * Adds a row per order sheet of the year that "Статистика MH" does not list yet, in its place among the dates,
  * and recounts the rows it already lists. Without a year it reads every order sheet from FIRST_STATS_YEAR on.
+ * It also fills the empty "Виконавець" of the rows it lists from FIRST_EXECUTOR_YEAR on, which reaches further back.
  */
 function fillStats(year) {
   const stats = SpreadsheetApp.getActive().getSheetByName(STATS_SHEET);
@@ -216,13 +219,14 @@ function fillStats(year) {
     const name = sheets[i].getName();
     const date = sheetDate(name);
     if (!date || OTHER_SHOP_SHEET.test(name)) continue;
-    if (!isStatsYear(date, year)) continue;
+    if (!executors[date] && isYearFrom(FIRST_EXECUTOR_YEAR, date, year)) {
+      const executor = orderExecutor(sheets[i]);
+      if (executor) executors[date] = executor;
+    }
+    if (!isYearFrom(FIRST_STATS_YEAR, date, year)) continue;
     const order = summarizeOrder(sheets[i]);
     if (!order) continue;
     orders[date] = orders[date] ? addOrders(orders[date], order) : order;
-    if (executors[date] || Number(date.slice(6)) < FIRST_EXECUTOR_YEAR) continue;
-    const executor = orderExecutor(sheets[i]);
-    if (executor) executors[date] = executor;
   }
 
   // Only columns A:L decide whether a row is empty; "Виконавець" is read on its own.
@@ -243,18 +247,21 @@ function fillStats(year) {
   for (let row = 0; row < values.length; row++) {
     const date = normalizeDate(values[row][0]);
     listed[date] = true;
-    if (!date || !isStatsYear(date, year)) continue;
-    // Only the cells that differ, so that a formula which already gives the right value stays.
-    const counts = orders[date] ? statsRow(orders[date]) : zeroFilled(values[row]);
+    if (!date) continue;
     let written = 0;
-    for (let i = 0; i < counts.length; i++) {
-      if (counts[i] === null || values[row][i + 1] === counts[i]) continue;
-      stats.getRange(row + 1, i + 2).setValue(counts[i]);
-      written++;
-    }
     // A filled-in "Виконавець" is someone's own entry.
     if (executors[date] && listedExecutors[row] === '') {
       stats.getRange(row + 1, EXECUTOR_COLUMN).setValue(executors[date]);
+      written++;
+    }
+    // Only the cells that differ, so that a formula which already gives the right value stays.
+    let counts = [];
+    if (isYearFrom(FIRST_STATS_YEAR, date, year)) {
+      counts = orders[date] ? statsRow(orders[date]) : zeroFilled(values[row]);
+    }
+    for (let i = 0; i < counts.length; i++) {
+      if (counts[i] === null || values[row][i + 1] === counts[i]) continue;
+      stats.getRange(row + 1, i + 2).setValue(counts[i]);
       written++;
     }
     if (written) updated++;
@@ -284,10 +291,10 @@ function fillStats(year) {
     (unknown.length ? '\nНе вдалося порахувати, заповніть вручну: ' + unknown.join(', ') : ''));
 }
 
-/** True for a date of that year, or of any year from FIRST_STATS_YEAR on when there is none. */
-function isStatsYear(date, year) {
+/** True for a date of that year, or of any year from firstYear on when there is none. */
+function isYearFrom(firstYear, date, year) {
   const dateYear = Number(date.slice(6));
-  return dateYear >= FIRST_STATS_YEAR && (!year || dateYear === year);
+  return dateYear >= firstYear && (!year || dateYear === year);
 }
 
 /**

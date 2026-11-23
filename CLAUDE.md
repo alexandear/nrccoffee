@@ -75,10 +75,11 @@ sheets in that spreadsheet hold formulas in these columns.
 
 Rows are classified by their link, not by sheet name or column header: one existing sheet carries a MadHeads header over
 3champsroastery links.
-The **Кава** menu runs `fillStats` for one year at a time, from a submenu of `fillStats2026` to `fillStats2024`:
+The **Кава** menu runs `fillStats` for one year at a time, from a submenu of `fillStats2026` to `fillStats2023`:
 reading every order sheet in one run does not fit in the 6 minute limit.
 A menu item calls a function by name and without arguments, which is why each year has its own.
-Rows before 2024 (`FIRST_STATS_YEAR`) are kept by hand: `fillStats` neither reads their sheets nor writes their rows.
+Rows before 2024 (`FIRST_STATS_YEAR`) are kept by hand: `fillStats` neither counts their sheets nor writes their rows,
+but for their "Виконавець", which is all that `fillStats2023` fills.
 `fillStats` skips a whole sheet whose name says 3champs ("3champs", "3chmp", "3Champs"), even when it holds a MadHeads
 row or two, and drops rows linking to another shop from the sheets it does read.
 
@@ -94,7 +95,7 @@ empty rows kept for a year, or into a row inserted there, which moves the later 
 Only columns A:L decide whether a row is empty, because the columns right of them hold things of their own.
 Columns H:L of "Статистика MH" hold the "Сума" of each category.
 Column M, "Виконавець", holds who made the order: the name cell ("Ім'я та нік в Телеграмі") of the order's first row.
-It is filled only from 2026 (`FIRST_EXECUTOR_YEAR`), and only into an empty cell, since a filled-in one is someone's own
+It is filled only from 2023 (`FIRST_EXECUTOR_YEAR`), and only into an empty cell, since a filled-in one is someone's own
 entry.
 `fillStats` recounts columns B:L of every row it already lists, not only the empty cells, and writes just the cells
 whose value changed.
