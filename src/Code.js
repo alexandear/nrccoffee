@@ -15,7 +15,6 @@ function onOpen() {
       .addItem('2024', 'fillStats2024')
       .addItem('2023', 'fillStats2023')
       .addItem('2022', 'fillStats2022'))
-    .addItem('Графік по місяцях', 'buildMonthlyChart')
     .addItem('Впорядкувати аркуші', 'sortSheets')
     .addToUi();
 }
@@ -468,112 +467,6 @@ function addOrders(order, other) {
     order[key] = order[key] === null || other[key] === null ? null : order[key] + other[key];
   });
   return order;
-}
-
-const MONTHLY_CHART_TITLE = 'Замовлення Madheads за місяць';
-
-/** First column of the monthly table, right of the per-order columns. */
-const MONTHLY_COLUMN = 15;
-
-/** Rebuilds the monthly table and the chart over it, below the charts already on the sheet. */
-function buildMonthlyChart() {
-  const stats = SpreadsheetApp.getActive().getSheetByName(STATS_SHEET);
-  if (!stats || stats.getLastRow() < 2) {
-    SpreadsheetApp.getUi().alert('Аркуш "' + STATS_SHEET + '" порожній.');
-    return;
-  }
-
-  const months = monthlyTotals(stats.getRange(2, 1, stats.getLastRow() - 1, 7).getValues());
-  writeMonthlyTable(stats, months);
-  replaceMonthlyChart(stats, months.length);
-  SpreadsheetApp.getUi().alert('Місяців у графіку: ' + months.length);
-}
-
-/** Totals per calendar month, oldest first, with a month without orders kept as a zero. */
-function monthlyTotals(values) {
-  const sums = {};
-  for (let row = 0; row < values.length; row++) {
-    const date = normalizeDate(values[row][0]);
-    if (!date) continue;
-    const month = date.slice(3);
-    if (!sums[month]) sums[month] = { month: month, coffee: 0, drip: 0, sum: 0 };
-    sums[month].coffee += number(values[row][1]);
-    sums[month].drip += number(values[row][2]);
-    sums[month].sum += number(values[row][6]);
-  }
-
-  const months = Object.keys(sums).sort(function (a, b) { return sortableMonth(a) < sortableMonth(b) ? -1 : 1; });
-  if (!months.length) return [];
-
-  const totals = [];
-  for (let month = months[0]; ; month = nextMonth(month)) {
-    totals.push(sums[month] || { month: month, coffee: 0, drip: 0, sum: 0 });
-    if (month === months[months.length - 1]) return totals;
-  }
-}
-
-/** The table is the script's own block, so it is written in one go. */
-function writeMonthlyTable(sheet, months) {
-  const rows = [['Місяць', 'Пачок кави', 'Пачок дріпів', 'Сума, грн']];
-  for (let i = 0; i < months.length; i++) {
-    rows.push([months[i].month, months[i].coffee, months[i].drip, months[i].sum]);
-  }
-  // An empty cell keeps its formatting, and this corner of the sheet carries a date format left
-  // over from an older table, which turns 51 packs into a day in 1900 and breaks the chart.
-  sheet.getRange(1, MONTHLY_COLUMN, sheet.getMaxRows(), rows[0].length).clear();
-  // "12.2025" is a number to a spreadsheet, and a date to some locales, so the column stays text.
-  sheet.getRange(1, MONTHLY_COLUMN, sheet.getMaxRows(), 1).setNumberFormat('@');
-  sheet.getRange(1, MONTHLY_COLUMN, rows.length, rows[0].length).setValues(rows);
-}
-
-function replaceMonthlyChart(sheet, months) {
-  const charts = sheet.getCharts();
-  let anchorRow = 2;
-  // Right of the monthly table, so that the chart covers none of the per-order columns.
-  let anchorColumn = MONTHLY_COLUMN + 5;
-  for (let i = 0; i < charts.length; i++) {
-    if (String(charts[i].getOptions().get('title')) === MONTHLY_CHART_TITLE) {
-      sheet.removeChart(charts[i]);
-      continue;
-    }
-    // Roughly a chart's height in rows: setPosition takes rows, and the chart's own height is in pixels.
-    const position = charts[i].getContainerInfo();
-    anchorRow = Math.max(anchorRow, position.getAnchorRow() + 22);
-    anchorColumn = position.getAnchorColumn();
-  }
-
-  const chart = sheet.newChart()
-    .setChartType(Charts.ChartType.COMBO)
-    .addRange(sheet.getRange(1, MONTHLY_COLUMN, months + 1, 4))
-    .setNumHeaders(1)
-    .setPosition(anchorRow, anchorColumn, 0, 0)
-    .setOption('title', MONTHLY_CHART_TITLE)
-    .setOption('width', 900)
-    .setOption('height', 400)
-    .setOption('isStacked', true)
-    .setOption('series', {
-      0: { type: 'bars', targetAxisIndex: 0 },
-      1: { type: 'bars', targetAxisIndex: 0 },
-      2: { type: 'line', targetAxisIndex: 1 },
-    })
-    .setOption('vAxes', { 0: { title: 'Пачок' }, 1: { title: 'Сума, грн' } })
-    .setOption('hAxis', { title: 'Місяць', slantedText: true })
-    .setOption('trendlines', { 2: { type: 'linear', lineWidth: 1, opacity: 0.3 } })
-    .build();
-  sheet.insertChart(chart);
-}
-
-function nextMonth(month) {
-  const value = Number(month.slice(0, 2));
-  return value < 12 ? pad(value + 1) + month.slice(2) : '01.' + (Number(month.slice(3)) + 1);
-}
-
-function sortableMonth(month) {
-  return month.slice(3) + month.slice(0, 2);
-}
-
-function number(cell) {
-  return typeof cell === 'number' ? cell : 0;
 }
 
 /** Orders the tabs newest first, with the sheets that are not orders kept in front. */

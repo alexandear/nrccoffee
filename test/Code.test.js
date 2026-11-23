@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { FakeChart, FakeSheet, shopProduct, useShop, useSpreadsheet } = require('./apps-script');
+const { FakeSheet, shopProduct, useShop, useSpreadsheet } = require('./apps-script');
 
 const BEANS = shopProduct({
   slug: 'beans-1', label: 'Biloya Oro Gr.1', country: 'ETHIOPIA', roast: 'Фільтр', grind: 'У зерні', wholesale: 450,
@@ -34,7 +34,6 @@ test('onOpen adds the Кава menu', () => {
           ['2022', 'fillStats2022'],
         ],
       },
-      ['Графік по місяцях', 'buildMonthlyChart'],
       ['Впорядкувати аркуші', 'sortSheets'],
     ],
   }]);
@@ -502,12 +501,8 @@ test('normalizeDate', () => {
   assert.equal(normalizeDate(''), '');
 });
 
-test('sortableDate, sortableMonth, nextMonth and pad', () => {
+test('sortableDate and pad', () => {
   assert.equal(sortableDate('21.12.2025'), '20251221');
-  assert.equal(sortableMonth('12.2025'), '202512');
-  assert.equal(nextMonth('01.2026'), '02.2026');
-  assert.equal(nextMonth('09.2026'), '10.2026');
-  assert.equal(nextMonth('12.2025'), '01.2026');
   assert.equal(pad(5), '05');
   assert.equal(pad('12'), '12');
 });
@@ -517,88 +512,6 @@ test('addOrders', () => {
   const second = { coffee: 3, drip: 0, tonic: 1, black: 0, filter: 1, sum: 50 };
   assert.equal(addOrders(first, second), first);
   assert.deepEqual(first, { coffee: 4, drip: 2, tonic: 1, black: 0, filter: 1, sum: 150 });
-});
-
-test('number', () => {
-  assert.equal(number(3), 3);
-  assert.equal(number(''), 0);
-  assert.equal(number('3'), 0);
-});
-
-test('monthlyTotals', async (t) => {
-  await t.test('sums per month and fills the gaps with zeros', () => {
-    const totals = monthlyTotals([
-      ['15.11.2025', 2, 10, 1, 0, 0, 1000],
-      [new Date(2025, 10, 30), 1, '', 0, 0, 0, 500],
-      ['', 9, 9, 9, 9, 9, 9],
-      ['10.01.2026', 3, 0, 0, 0, 0, 'n/a'],
-    ]);
-    assert.deepEqual(totals, [
-      { month: '11.2025', coffee: 3, drip: 10, sum: 1500 },
-      { month: '12.2025', coffee: 0, drip: 0, sum: 0 },
-      { month: '01.2026', coffee: 3, drip: 0, sum: 0 },
-    ]);
-  });
-
-  await t.test('no dates', () => {
-    assert.deepEqual(monthlyTotals([['', 1, 1, 1, 1, 1, 1]]), []);
-  });
-});
-
-test('buildMonthlyChart', async (t) => {
-  await t.test('rebuilds the table and replaces its chart below the others', () => {
-    const perOrder = new FakeChart({ title: 'Замовлення' }, 2, 9);
-    const oldMonthly = new FakeChart({ title: 'Замовлення Madheads за місяць' }, 24, 9);
-    const stats = new FakeSheet('Статистика MH', [
-      STATS_HEADER,
-      ['15.11.2025', 2, 10, 0, 0, 0, 1000],
-      ['10.01.2026', 3, 0, 0, 0, 0, 1350],
-    ], { charts: [perOrder, oldMonthly], maxRows: 20 });
-    stats.write(10, 15, 'left over');
-    stats.getRange(1, 16, 20, 1).setNumberFormat('dd.mm.yyyy');
-    const { ui } = useSpreadsheet([stats]);
-
-    buildMonthlyChart();
-
-    assert.deepEqual(stats.getRange(1, 15, 5, 4).getValues(), [
-      ['Місяць', 'Пачок кави', 'Пачок дріпів', 'Сума, грн'],
-      ['11.2025', 2, 10, 1000],
-      ['12.2025', 0, 0, 0],
-      ['01.2026', 3, 0, 1350],
-      ['', '', '', ''],
-    ]);
-    assert.equal(stats.cell(10, 15), '');
-    assert.equal(stats.formats['2,15'], '@');
-    assert.equal(stats.formats['20,15'], '@');
-    assert.equal(stats.formats['2,16'], undefined);
-
-    assert.equal(stats.charts.length, 2);
-    assert.equal(stats.charts[0], perOrder);
-    const chart = stats.charts[1];
-    assert.equal(chart.getOptions().get('title'), 'Замовлення Madheads за місяць');
-    assert.equal(chart.type, 'COMBO');
-    assert.deepEqual([chart.anchorRow, chart.anchorColumn], [24, 9]);
-    const range = chart.ranges[0];
-    assert.deepEqual([range.row, range.column, range.numRows, range.numColumns], [1, 15, 4, 4]);
-    assert.deepEqual(ui.alerts, ['Місяців у графіку: 3']);
-  });
-
-  await t.test('the first chart on a sheet goes right of the monthly table', () => {
-    const stats = new FakeSheet('Статистика MH', [STATS_HEADER, ['15.11.2025', 2, 10, 0, 0, 0, 1000]]);
-    useSpreadsheet([stats]);
-    buildMonthlyChart();
-    assert.deepEqual([stats.charts[0].anchorRow, stats.charts[0].anchorColumn], [2, 20]);
-  });
-
-  await t.test('an empty or missing statistics sheet', () => {
-    let { ui } = useSpreadsheet([new FakeSheet('Статистика MH', [STATS_HEADER])]);
-    buildMonthlyChart();
-    assert.deepEqual(ui.alerts, ['Аркуш "Статистика MH" порожній.']);
-
-    ({ ui } = useSpreadsheet([new FakeSheet('Шаблон')]));
-    buildMonthlyChart();
-    assert.deepEqual(ui.alerts, ['Аркуш "Статистика MH" порожній.']);
-  });
 });
 
 test('sortSheets', async (t) => {

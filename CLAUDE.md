@@ -90,8 +90,7 @@ Dates live in sheet names, not in the sheets, and two sheets can carry the same 
 one row.
 `fillStats` puts a new date in its place among the dates: into the empty row after the latest earlier date, as in the
 empty rows kept for a year, or into a row inserted there, which moves the later dates down.
-Only columns A:L decide whether a row is empty, because the monthly table in O:R shares the rows.
-An inserted row is a whole sheet row, so it leaves a gap in that table until `buildMonthlyChart` rebuilds it.
+Only columns A:L decide whether a row is empty, because the columns right of them hold things of their own.
 Columns H:L of "Статистика MH" hold the "Сума" of each category.
 `fillStats` recounts columns B:L of every row it already lists, not only the empty cells, and writes just the cells
 whose value changed.
@@ -113,20 +112,14 @@ It moves one sheet at a time and re-reads the tab order after each move, because
 A hidden sheet is shown, moved and hidden again: moving a sheet goes through activating it, and a hidden sheet cannot be
 activated.
 
-`buildMonthlyChart` keeps its own table in columns O:R of "Статистика MH" and rebuilds the chart drawn over it, so the
-per-order chart stays untouched.
-That block belongs to the script alone, which is why it is the one place written with `setValues`, and why it is
-cleared with `clear` rather than `clearContent`: an empty cell keeps its formatting, and column P of that sheet came
-with a date format that turned 51 packs into a day in 1900.
-Dates and months are written into cells forced to text with `setNumberFormat('@')`, because a written string is parsed
-the way typing it would be: 05.12.2022 is the fifth of December or the twelfth of May depending on the locale, and
-"12.2025" is a number.
+Dates are written into cells forced to text with `setNumberFormat('@')`, because a written string is parsed the way
+typing it would be: 05.12.2022 is the fifth of December or the twelfth of May depending on the locale.
 
 ## Verifying changes
 
 `npm test` runs `test/*.test.js` with `node:test` and no dependencies.
-`test/apps-script.js` evaluates `src/` into one global scope, as Apps Script does, and stands in for `SpreadsheetApp`,
-`UrlFetchApp` and `Charts` with in-memory sheets and a shop that serves `__data.json` from fixtures.
+`test/apps-script.js` evaluates `src/` into one global scope, as Apps Script does, and stands in for `SpreadsheetApp`
+and `UrlFetchApp` with in-memory sheets and a shop that serves `__data.json` from fixtures.
 `test/` sits outside `rootDir`, so clasp never pushes it.
 
 `MadHeads.js` can be checked from Node without mocking the shop: evaluate the file with a `UrlFetchApp` shim that shells

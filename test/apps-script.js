@@ -1,5 +1,5 @@
 // Loads src/ the way Apps Script does, into one global scope, and provides in-memory stand-ins for the services it
-// calls: SpreadsheetApp, UrlFetchApp and Charts.
+// calls: SpreadsheetApp and UrlFetchApp.
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -52,59 +52,16 @@ class FakeRange {
     return this;
   }
 
-  clear() {
-    this.each((row, column) => {
-      delete this.sheet.formats[row + ',' + column];
-      if (this.sheet.values[row - 1] && column <= this.sheet.values[row - 1].length) {
-        this.sheet.values[row - 1][column - 1] = '';
-      }
-    });
-    return this;
-  }
-}
-
-class FakeChart {
-  constructor(options, anchorRow, anchorColumn, ranges = [], type = null) {
-    this.options = options;
-    this.anchorRow = anchorRow;
-    this.anchorColumn = anchorColumn;
-    this.ranges = ranges;
-    this.type = type;
-  }
-
-  getOptions() {
-    return { get: (key) => (key in this.options ? this.options[key] : null) };
-  }
-
-  getContainerInfo() {
-    return { getAnchorRow: () => this.anchorRow, getAnchorColumn: () => this.anchorColumn };
-  }
-}
-
-class FakeChartBuilder {
-  constructor() {
-    this.options = {};
-    this.ranges = [];
-  }
-
-  setChartType(type) { this.type = type; return this; }
-  addRange(range) { this.ranges.push(range); return this; }
-  setNumHeaders(headers) { this.headers = headers; return this; }
-  setPosition(row, column) { this.row = row; this.column = column; return this; }
-  setOption(key, value) { this.options[key] = value; return this; }
-  build() { return new FakeChart(this.options, this.row, this.column, this.ranges, this.type); }
 }
 
 let nextSheetId = 1;
 
 class FakeSheet {
   /** values is the sheet's content from A1, one array per row. */
-  constructor(name, values = [], { hidden = false, charts = [], maxRows = 1000 } = {}) {
+  constructor(name, values = [], { hidden = false } = {}) {
     this.name = name;
     this.values = values.map((row) => row.slice());
     this.hidden = hidden;
-    this.charts = charts;
-    this.maxRows = maxRows;
     this.formats = {};
     this.writes = [];
     this.id = nextSheetId++;
@@ -128,7 +85,6 @@ class FakeSheet {
   isSheetHidden() { return this.hidden; }
   showSheet() { this.hidden = false; return this; }
   hideSheet() { this.hidden = true; return this; }
-  getMaxRows() { return this.maxRows; }
 
   insertRowAfter(row) {
     while (this.values.length < row) this.values.push([]);
@@ -153,10 +109,6 @@ class FakeSheet {
     return new FakeRange(this, row, column, numRows, numColumns);
   }
 
-  getCharts() { return this.charts.slice(); }
-  removeChart(chart) { this.charts = this.charts.filter((c) => c !== chart); }
-  newChart() { return new FakeChartBuilder(); }
-  insertChart(chart) { this.charts.push(chart); }
 }
 
 class FakeSpreadsheet {
@@ -211,7 +163,6 @@ function useSpreadsheet(sheets) {
     getActiveSheet: () => spreadsheet.getActiveSheet(),
     getUi: () => ui,
   };
-  globalThis.Charts = { ChartType: { COMBO: 'COMBO' } };
   return { spreadsheet, ui };
 }
 
@@ -276,4 +227,4 @@ function useShop(products) {
   return fetched;
 }
 
-module.exports = { FakeChart, FakeSheet, flatten, shopProduct, useShop, useSpreadsheet };
+module.exports = { FakeSheet, flatten, shopProduct, useShop, useSpreadsheet };
