@@ -231,12 +231,12 @@ function fillStats(year) {
   for (let row = 0; row < values.length; row++) {
     const date = normalizeDate(values[row][0]);
     listed[date] = true;
-    if (!orders[date]) continue;
+    if (!date || (year && date.slice(6) !== String(year))) continue;
     // Only the cells that differ, so that a formula which already gives the right value stays.
-    const counts = statsRow(orders[date]);
+    const counts = orders[date] ? statsRow(orders[date]) : zeroFilled(values[row]);
     let written = 0;
     for (let i = 0; i < counts.length; i++) {
-      if (values[row][i + 1] === counts[i]) continue;
+      if (counts[i] === null || values[row][i + 1] === counts[i]) continue;
       stats.getRange(row + 1, i + 2).setValue(counts[i]);
       written++;
     }
@@ -255,11 +255,15 @@ function fillStats(year) {
     // which reads 05.12.2022 as the fifth of December or as the twelfth of May depending on it.
     stats.getRange(row, 1).setNumberFormat('@').setValue(missing[i]);
     for (let j = 0; j < counts.length; j++) {
-      stats.getRange(row, j + 2).setValue(counts[j]);
+      if (counts[j] !== null) stats.getRange(row, j + 2).setValue(counts[j]);
     }
   }
 
-  SpreadsheetApp.getUi().alert('Додано рядків: ' + missing.length + '\nОновлено рядків: ' + updated);
+  // An old sheet whose rows do not add up leaves cells for a person to fill.
+  const unknown = Object.keys(orders).filter(function (date) { return statsRow(orders[date]).indexOf(null) >= 0; });
+  unknown.sort(function (a, b) { return sortableDate(a) < sortableDate(b) ? -1 : 1; });
+  SpreadsheetApp.getUi().alert('Додано рядків: ' + missing.length + '\nОновлено рядків: ' + updated +
+    (unknown.length ? '\nНе вдалося порахувати, заповніть вручну: ' + unknown.join(', ') : ''));
 }
 
 /**
@@ -290,6 +294,20 @@ function isEmptyRow(row) {
   return row.every(function (cell) { return cell === ''; });
 }
 
+/**
+ * Columns B:L of a row with no order sheet to recount it from, such as a sheet without "Сума":
+ * an empty count is 0, and so is the "грн" of a category with none, but an unknown "грн" stays empty.
+ */
+function zeroFilled(row) {
+  const cells = row.slice(1, STATS_MONEY_COLUMN + STATS_MONEY.length - 1);
+  for (let i = 0; i < STATS_MONEY.length; i++) {
+    const money = STATS_MONEY_COLUMN - 2 + i;
+    if (cells[i] === '') cells[i] = 0;
+    if (cells[i] === 0 && cells[money] === '') cells[money] = 0;
+  }
+  return cells;
+}
+
 /** Columns B:L of "Статистика MH" for one order: the counts, the total, then the "грн" of each category. */
 function statsRow(order) {
   const row = [order.coffee, order.drip, order.tonic, order.black, order.filter, order.sum];
@@ -313,7 +331,7 @@ function summarizeOrder(sheet) {
   const name = indexOfHeader(header, function (cell) { return cell === 'назва'; });
   const quantity = indexOfHeader(header, function (cell) { return cell === 'кількість'; });
   const sum = indexOfHeader(header, function (cell) { return cell === 'сума'; });
-  if (quantity < 0 || sum < 0) return null;
+  if (quantity < 0 || sum < 0) return summarizeOldOrder(values, headerRow);
 
   const order = {
     coffee: 0, drip: 0, tonic: 0, black: 0, filter: 0, sum: 0,
@@ -343,6 +361,67 @@ function summarizeOrder(sheet) {
   // "Всього грн" is a label with the hand-kept total under it, and it covers the whole sheet.
   const total = foreign ? null : labelledValue(values, 'всього грн');
   if (total !== null) order.sum = total;
+  return order;
+}
+
+/** A drip in a sheet older than April 2024, e.g. "MIX BOX", "Cyato Box" or ".../shop/izidrip/mix-box/". */
+const OLD_DRIP = /izidrip|\bbox\b/i;
+
+/** Labels of the counts in a sheet older than April 2024, each with its number in the cell under it. */
+const OLD_COUNT_LABELS = {
+  coffee: ['пачок кави'],
+  drip: ['пачок дріпів'],
+  tonic: ['coffee tonic'],
+  black: ['blackcoffee', 'black coffee'],
+  filter: [],
+};
+
+/**
+ * Counts and "Сума" per category of a sheet older than April 2024, which has no "Сума" column, or null.
+ * Its counts and total are labelled cells, and each row holds its own price, so a category's "Сума" is the sum of
+ * those prices. A value that cannot be told is null: a count with no label when rows of its category exist,
+ * and every "Сума" when the prices do not add up to the total or the drips found do not match "Пачок дріпів".
+ */
+function summarizeOldOrder(values, headerRow) {
+  const total = labelledValue(values, 'всього грн');
+  const sum = total !== null ? total : labelledValue(values, 'всього');
+  if (sum === null) return null;
+
+  const header = values[headerRow];
+  const link = indexOfHeader(header, isLinkHeader);
+  const name = indexOfHeader(header, function (cell) { return cell === 'назва'; });
+  const note = indexOfHeader(header, function (cell) { return cell === 'примітки'; });
+  const price = indexOfHeader(header, function (cell) { return cell === 'ціна, грн' || cell === 'ціна'; });
+  const dripMark = indexOfHeader(header, function (cell) { return cell === 'пачок дріпів'; });
+
+  const sums = { coffee: 0, drip: 0, tonic: 0, black: 0, filter: 0 };
+  const rows = { coffee: 0, drip: 0, tonic: 0, black: 0, filter: 0 };
+  let priced = 0;
+  for (let row = headerRow + 1; price >= 0 && row < values.length; row++) {
+    const url = link < 0 ? '' : String(values[row][link]).trim();
+    const text = [name, note].map(function (column) {
+      return column < 0 ? '' : String(values[row][column]).trim();
+    }).join(' ').trim();
+    if (typeof values[row][price] !== 'number' || (!text && !url)) continue;
+    let category = madHeadsCategory(text, url);
+    if (category === 'coffee' && (OLD_DRIP.test(text + ' ' + url) || values[row][dripMark] === 1)) category = 'drip';
+    sums[category] += values[row][price];
+    rows[category]++;
+    priced += values[row][price];
+  }
+
+  const order = { sum: sum };
+  Object.keys(OLD_COUNT_LABELS).forEach(function (category) {
+    let count = null;
+    OLD_COUNT_LABELS[category].forEach(function (label) {
+      if (count === null) count = labelledValue(values, label);
+    });
+    order[category] = count !== null ? count : (rows[category] ? null : 0);
+  });
+  const known = price >= 0 && priced === sum && rows.drip === order.drip;
+  Object.keys(sums).forEach(function (category) {
+    order[category + 'Sum'] = known ? sums[category] : null;
+  });
   return order;
 }
 
@@ -385,7 +464,9 @@ function pad(number) {
 }
 
 function addOrders(order, other) {
-  Object.keys(order).forEach(function (key) { order[key] += other[key]; });
+  Object.keys(order).forEach(function (key) {
+    order[key] = order[key] === null || other[key] === null ? null : order[key] + other[key];
+  });
   return order;
 }
 

@@ -187,6 +187,80 @@ test('findColumns', () => {
   assert.equal(findColumns(['Посилання', 'Назва', 'Обсмажка', 'Помел']), null);
 });
 
+const OLD_HEADER = [
+  "Ім'я", 'Посилання на каву', 'Примітки', 'Ціна, грн', 'Ціна з людини',
+  'Пачок кави', 'Пачок дріпів', 'Coffee Tonic', 'Всього пачок', 'Всього, грн', 'Назва',
+];
+
+function oldOrderRows({ dripMark = 1 } = {}) {
+  return [
+    OLD_HEADER,
+    ['Хто', 'Що', 'Примітка', 'Ціна оптова', '', 2, 2, 22, 26, 2301],
+    ['', 'Посилання без помолу і обсмажування вважається "Фільтр у зерні"'],
+    ['A', 'https://madheadscoffee.com/p/OcYG8qMawKc', '', 220, 523],
+    ['', 'https://madheadscoffee.com/p/q46wOSi6umo', '', 303],
+    ['B', 'https://madheadscoffee.com/p/WueUkw88Y4O', '', 240, 480, '', '', '', '', '', 'RWANDA Cyato Box'],
+    ['', 'https://madheadscoffee.com/p/Ae8oEACSG6', '', 240, '', '', dripMark],
+    ['C', 'Coffee Tonic', 22, 1298, 1298],
+    ['', '', '', '', 0],
+  ];
+}
+
+test('summarizeOldOrder', async (t) => {
+  await t.test('takes the labelled counts and sums each row\'s price by category', () => {
+    assert.deepEqual(summarizeOrder(new FakeSheet('09.01.2024', oldOrderRows())), {
+      coffee: 2, drip: 2, tonic: 22, black: 0, filter: 0, sum: 2301,
+      coffeeSum: 523, dripSum: 480, tonicSum: 1298, blackSum: 0, filterSum: 0,
+    });
+  });
+
+  await t.test('leaves every Сума unknown when a drip cannot be told', () => {
+    assert.deepEqual(summarizeOrder(new FakeSheet('02.03.2024', oldOrderRows({ dripMark: '' }))), {
+      coffee: 2, drip: 2, tonic: 22, black: 0, filter: 0, sum: 2301,
+      coffeeSum: null, dripSum: null, tonicSum: null, blackSum: null, filterSum: null,
+    });
+  });
+
+  await t.test('reads the 2022 layout with its labels at the bottom', () => {
+    const sheet = new FakeSheet('22.08.2022', [
+      ["Ім'я", 'Посилання на каву', 'Кількість', 'Кількість Coffee Tonic', 'Кількість BlackCoffee', 'Примітки', 'Ціна'],
+      ['A', 'https://madheadscoffee.com/shop/mh-drinks/coffee-tonic/', '', 5, '', '', 245],
+      ['B', 'https://madheadscoffee.com/shop/mh-drinks/black-coffee/', '', '', 22, '', 1078],
+      ['C', 'https://madheadscoffee.com/shop/izidrip/mix-box/', 1, '', '', '', 300],
+      [],
+      ['', '', 'Пачок дріпів', 'Coffee Tonic', 'BlackCoffee', '', 'Всього'],
+      ['', '', 1, 5, 22, '', 1623],
+    ]);
+    assert.deepEqual(summarizeOrder(sheet), {
+      coffee: 0, drip: 1, tonic: 5, black: 22, filter: 0, sum: 1623,
+      coffeeSum: 0, dripSum: 300, tonicSum: 245, blackSum: 1078, filterSum: 0,
+    });
+  });
+
+  await t.test('a count without a label is unknown when rows of its category exist', () => {
+    const rows = oldOrderRows();
+    rows[0] = rows[0].map((cell) => (cell === 'Coffee Tonic' ? 'Тонік' : cell));
+    const order = summarizeOrder(new FakeSheet('x', rows));
+    assert.equal(order.tonic, null);
+    assert.equal(order.black, 0);
+  });
+
+  await t.test('fillStats keeps the cells it cannot count and names their dates', () => {
+    const stats = new FakeSheet('Статистика MH', [
+      [...STATS_HEADER, ...MONEY_HEADER],
+      ['02.03.2024', 2, 2, '', 0, 0, 2301],
+    ]);
+    const { ui } = useSpreadsheet([stats, new FakeSheet('02.03.2024', oldOrderRows({ dripMark: '' }))]);
+
+    fillStats(2024);
+
+    assert.deepEqual(stats.values[1], ['02.03.2024', 2, 2, 22, 0, 0, 2301]);
+    assert.deepEqual(ui.alerts, [
+      'Додано рядків: 0\nОновлено рядків: 1\nНе вдалося порахувати, заповніть вручну: 02.03.2024',
+    ]);
+  });
+});
+
 test('isLinkHeader, indexOfHeader and normalize', () => {
   assert.equal(isLinkHeader(' Посилання на товар'), true);
   assert.equal(isLinkHeader('Моє посилання'), false);
@@ -310,7 +384,26 @@ test('fillStats', async (t) => {
     ]);
     assert.deepEqual(stats.values[4], ['10.01.2026', 1, 0, 0, 0, 0, 450, 450, 0, 0, 0, 0]);
     assert.deepEqual(stats.inserted, [2, 4]);
-    assert.deepEqual(ui.alerts, ['Додано рядків: 3\nОновлено рядків: 0']);
+    assert.deepEqual(stats.values[3], ['07.01.2026', 1, 0, 0, 0, 0, '', '', 0, 0, 0, 0]);
+    assert.deepEqual(ui.alerts, ['Додано рядків: 3\nОновлено рядків: 2']);
+  });
+
+  await t.test('fills 0 into the empty cells of a row without an order sheet', () => {
+    const stats = new FakeSheet('Статистика MH', [
+      [...STATS_HEADER, ...MONEY_HEADER],
+      ['05.06.2023', '', 1, 24, '', '', 1656],
+      ['05.06.2022', 8, '', '', '', '', 1411],
+    ]);
+    const { ui } = useSpreadsheet([stats]);
+
+    fillStats(2023);
+
+    assert.deepEqual(stats.values, [
+      [...STATS_HEADER, ...MONEY_HEADER],
+      ['05.06.2023', 0, 1, 24, 0, 0, 1656, 0, '', '', 0, 0],
+      ['05.06.2022', 8, '', '', '', '', 1411],
+    ]);
+    assert.deepEqual(ui.alerts, ['Додано рядків: 0\nОновлено рядків: 1']);
   });
 
   await t.test('nothing to change', () => {

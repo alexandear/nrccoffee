@@ -95,7 +95,17 @@ An inserted row is a whole sheet row, so it leaves a gap in that table until `bu
 Columns H:L of "Статистика MH" hold the "Сума" of each category.
 `fillStats` recounts columns B:L of every row it already lists, not only the empty cells, and writes just the cells
 whose value changed.
-Sheets older than April 2024 have no "Сума" column, so `fillStats` cannot read them and leaves their rows as they are.
+Sheets older than April 2024 have no "Сума" column, and `summarizeOldOrder` reads them instead.
+Their counts and total are labels with the number under them: "Пачок кави", "Пачок дріпів", "Coffee Tonic",
+"BlackCoffee", and "Всього, грн" or, in 2022, "Всього".
+Each row holds its own price in "Ціна, грн" or "Ціна", and a category's "грн" is the sum of those prices.
+A drip there is named "Box", links to `/shop/izidrip/`, or has 1 in its "Пачок дріпів" cell, never "Easy Drip".
+Some rows carry only a bare `/p/<id>` link, so when the prices miss the total or the drips found miss "Пачок дріпів",
+every "грн" of that sheet is unknown: `fillStats` leaves those cells alone and names the date in its report.
+A count without a label is 0 only when no row of its category exists, and unknown otherwise.
+A sheet without a "Посилання" header, such as 26.06.2022, is not read at all.
+For the rows of no readable sheet `fillStats` only writes 0 into their empty counts, and into the empty "грн" of a
+category whose count is 0: any other empty "грн" is a sum nobody knows, not a zero.
 Together they can differ from "Сума, грн", which takes the "Всього грн" total after a discount.
 
 `sortSheets` orders the tabs newest first and keeps "Шаблон" and "Статистика MH" in front of them.
