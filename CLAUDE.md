@@ -82,6 +82,7 @@ A menu item calls a function by name and without arguments, which is why each ye
 row or two, and drops rows linking to another shop from the sheets it does read.
 
 A row's category comes from its name, because the shop sells variants rather than categories: `madHeadsCategory`.
+Only "Easy Drip" in a name or link makes a row a drip.
 "Фільтр" alone is a roast, so only "Фільтри" and Hario mean the paper filters column.
 An order's total is the number under the "Всього грн" label, and the sum of the "Сума" column on the sheets without
 that label.

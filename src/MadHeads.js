@@ -116,7 +116,7 @@ function madHeadsCategory(name, link) {
   const text = (String(name) + ' ' + String(link)).toLowerCase();
   if (text.indexOf('tonic') >= 0 || text.indexOf('тонік') >= 0) return 'tonic';
   if (text.indexOf('black coffee') >= 0 || text.indexOf('blackcoffee') >= 0) return 'black';
-  if (text.indexOf('drip') >= 0 || text.indexOf('дріп') >= 0) return 'drip';
+  if (text.indexOf('easy drip') >= 0) return 'drip';
   if (text.indexOf('фільтри') >= 0 || text.indexOf('hario') >= 0) return 'filter';
   return 'coffee';
 }
