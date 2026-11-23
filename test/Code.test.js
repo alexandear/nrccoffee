@@ -30,8 +30,6 @@ test('onOpen adds the Кава menu', () => {
           ['2026', 'fillStats2026'],
           ['2025', 'fillStats2025'],
           ['2024', 'fillStats2024'],
-          ['2023', 'fillStats2023'],
-          ['2022', 'fillStats2022'],
         ],
       },
       ['Впорядкувати аркуші', 'sortSheets'],
@@ -401,20 +399,20 @@ test('fillStats', async (t) => {
     assert.deepEqual(ui.alerts, ['Додано рядків: 3\nОновлено рядків: 2']);
   });
 
-  await t.test('fills 0 into the empty cells of a row without an order sheet', () => {
+  await t.test('fills 0 into the empty cells of a row without an order sheet, and leaves 2023 alone', () => {
     const stats = new FakeSheet('Статистика MH', [
       [...STATS_HEADER, ...MONEY_HEADER],
-      ['05.06.2023', '', 1, 24, '', '', 1656],
-      ['05.06.2022', 8, '', '', '', '', 1411],
+      ['05.06.2024', '', 1, 24, '', '', 1656],
+      ['05.06.2023', 8, '', '', '', '', 1411],
     ]);
-    const { ui } = useSpreadsheet([stats]);
+    const { ui } = useSpreadsheet([stats, orderSheet('10.01.2023', [[BEANS_LINK, 'Kenya', 1, 450]])]);
 
-    fillStats(2023);
+    fillStats();
 
     assert.deepEqual(stats.values, [
       [...STATS_HEADER, ...MONEY_HEADER],
-      ['05.06.2023', 0, 1, 24, 0, 0, 1656, 0, '', '', 0, 0],
-      ['05.06.2022', 8, '', '', '', '', 1411],
+      ['05.06.2024', 0, 1, 24, 0, 0, 1656, 0, '', '', 0, 0],
+      ['05.06.2023', 8, '', '', '', '', 1411],
     ]);
     assert.deepEqual(ui.alerts, ['Додано рядків: 0\nОновлено рядків: 1']);
   });

@@ -12,9 +12,7 @@ function onOpen() {
       .createMenu('Оновити статистику MH')
       .addItem('2026', 'fillStats2026')
       .addItem('2025', 'fillStats2025')
-      .addItem('2024', 'fillStats2024')
-      .addItem('2023', 'fillStats2023')
-      .addItem('2022', 'fillStats2022'))
+      .addItem('2024', 'fillStats2024'))
     .addItem('Впорядкувати аркуші', 'sortSheets')
     .addToUi();
 }
@@ -185,17 +183,18 @@ const STATS_MONEY = [
 ];
 const STATS_MONEY_COLUMN = 8;
 
+/** Rows of earlier years are kept by hand, and the script leaves them alone. */
+const FIRST_STATS_YEAR = 2024;
+
 // A menu item calls a function by name, without arguments, so each year needs its own.
 // One year at a time, because every order sheet together does not fit in the 6 minute limit.
 function fillStats2026() { fillStats(2026); }
 function fillStats2025() { fillStats(2025); }
 function fillStats2024() { fillStats(2024); }
-function fillStats2023() { fillStats(2023); }
-function fillStats2022() { fillStats(2022); }
 
 /**
  * Adds a row per order sheet of the year that "Статистика MH" does not list yet, in its place among the dates,
- * and recounts the rows it already lists. Without a year it reads every order sheet.
+ * and recounts the rows it already lists. Without a year it reads every order sheet from FIRST_STATS_YEAR on.
  */
 function fillStats(year) {
   const stats = SpreadsheetApp.getActive().getSheetByName(STATS_SHEET);
@@ -211,7 +210,7 @@ function fillStats(year) {
     const name = sheets[i].getName();
     const date = sheetDate(name);
     if (!date || OTHER_SHOP_SHEET.test(name)) continue;
-    if (year && date.slice(6) !== String(year)) continue;
+    if (!isStatsYear(date, year)) continue;
     const order = summarizeOrder(sheets[i]);
     if (!order) continue;
     orders[date] = orders[date] ? addOrders(orders[date], order) : order;
@@ -230,7 +229,7 @@ function fillStats(year) {
   for (let row = 0; row < values.length; row++) {
     const date = normalizeDate(values[row][0]);
     listed[date] = true;
-    if (!date || (year && date.slice(6) !== String(year))) continue;
+    if (!date || !isStatsYear(date, year)) continue;
     // Only the cells that differ, so that a formula which already gives the right value stays.
     const counts = orders[date] ? statsRow(orders[date]) : zeroFilled(values[row]);
     let written = 0;
@@ -263,6 +262,12 @@ function fillStats(year) {
   unknown.sort(function (a, b) { return sortableDate(a) < sortableDate(b) ? -1 : 1; });
   SpreadsheetApp.getUi().alert('Додано рядків: ' + missing.length + '\nОновлено рядків: ' + updated +
     (unknown.length ? '\nНе вдалося порахувати, заповніть вручну: ' + unknown.join(', ') : ''));
+}
+
+/** True for a date of that year, or of any year from FIRST_STATS_YEAR on when there is none. */
+function isStatsYear(date, year) {
+  const dateYear = Number(date.slice(6));
+  return dateYear >= FIRST_STATS_YEAR && (!year || dateYear === year);
 }
 
 /**
