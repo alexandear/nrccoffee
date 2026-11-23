@@ -159,6 +159,7 @@ test('madHeadsCategory', async (t) => {
     ['ETHIOPIA Biloya Oro Gr.1 Easy Drip', '', 'drip'],
     ['Дріп-пакети', '', 'coffee'],
     ['Drip Bag', '', 'coffee'],
+    ['MIX BOX', '', 'drip'],
     ['Cold Brew Tonic', '', 'tonic'],
     ['Еспресо-тонік', '', 'tonic'],
     ['Black Coffee 0.25', '', 'black'],

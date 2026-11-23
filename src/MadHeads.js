@@ -118,7 +118,7 @@ function madHeadsCategory(name, link) {
   if (text.indexOf('black coffee') >= 0 || text.indexOf('blackcoffee') >= 0 || text.indexOf('black-coffee') >= 0) {
     return 'black';
   }
-  if (text.indexOf('easy drip') >= 0) return 'drip';
+  if (text.indexOf('easy drip') >= 0 || text.indexOf('mix box') >= 0) return 'drip';
   if (text.indexOf('фільтри') >= 0 || text.indexOf('hario') >= 0) return 'filter';
   return 'coffee';
 }
