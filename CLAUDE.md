@@ -93,6 +93,9 @@ one row.
 empty rows kept for a year, or into a row inserted there, which moves the later dates down.
 Only columns A:L decide whether a row is empty, because the columns right of them hold things of their own.
 Columns H:L of "Статистика MH" hold the "Сума" of each category.
+Column M, "Виконавець", holds who made the order: the name cell ("Ім'я та нік в Телеграмі") of the order's first row.
+It is filled only from 2026 (`FIRST_EXECUTOR_YEAR`), and only into an empty cell, since a filled-in one is someone's own
+entry.
 `fillStats` recounts columns B:L of every row it already lists, not only the empty cells, and writes just the cells
 whose value changed.
 Sheets older than April 2024 have no "Сума" column, and `summarizeOldOrder` reads them instead.

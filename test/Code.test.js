@@ -417,6 +417,37 @@ test('fillStats', async (t) => {
     assert.deepEqual(ui.alerts, ['Додано рядків: 0\nОновлено рядків: 1']);
   });
 
+  await t.test('fills the empty Виконавець of 2026 from the first row of the order', () => {
+    const header = ["Ім'я та нік в Телеграмі", 'Посилання', 'Назва', 'Кількість', 'Сума'];
+    const order = (name, first) => new FakeSheet(name, [
+      header,
+      ['Або будь-яка інша інфа', '', '', '', ''],
+      ['', 'Посилання без помолу', '', '', ''],
+      [first, BEANS_LINK, 'Kenya', 1, 450],
+      ['someone', BEANS_LINK, 'Kenya', 1, 450],
+    ]);
+    const stats = new FakeSheet('Статистика MH', [
+      [...STATS_HEADER, ...MONEY_HEADER],
+      ['21.12.2025', 2, 0, 0, 0, 0, 900, 900, 0, 0, 0, 0],
+      ['07.01.2026', 2, 0, 0, 0, 0, 900, 900, 0, 0, 0, 0],
+      ['19.01.2026', 2, 0, 0, 0, 0, 900, 900, 0, 0, 0, 0, 'by hand'],
+    ]);
+    const { ui } = useSpreadsheet([
+      stats,
+      order('21.12.2025', 'old'),
+      order('07.01.2026', ' oleg4erkassov '),
+      order('19.01.2026', 'other'),
+      order('20.11.2026', 'Anna Bell'),
+    ]);
+
+    fillStats();
+
+    assert.deepEqual(stats.values.map((row) => row[12]), [
+      'Виконавець', undefined, 'oleg4erkassov', 'by hand', 'Anna Bell',
+    ]);
+    assert.deepEqual(ui.alerts, ['Додано рядків: 1\nОновлено рядків: 1']);
+  });
+
   await t.test('nothing to change', () => {
     const stats = new FakeSheet('Статистика MH', [
       [...STATS_HEADER, ...MONEY_HEADER],
