@@ -30,7 +30,6 @@ test('onOpen adds the Кава menu', () => {
           ['2026', 'fillStats2026'],
           ['2025', 'fillStats2025'],
           ['2024', 'fillStats2024'],
-          ['2023: лише виконавці', 'fillStats2023'],
         ],
       },
       ['Впорядкувати аркуші', 'sortSheets'],
@@ -266,7 +265,7 @@ test('summarizeOldOrder', async (t) => {
 
     fillStats(2024);
 
-    assert.deepEqual(stats.values[1], ['02.03.2024', 2, 2, 22, 0, 0, 2301, '', '', '', '', '', 'A']);
+    assert.deepEqual(stats.values[1], ['02.03.2024', 2, 2, 22, 0, 0, 2301]);
     assert.deepEqual(ui.alerts, [
       'Додано рядків: 0\nОновлено рядків: 1\nНе вдалося порахувати, заповніть вручну: 02.03.2024',
     ]);
@@ -284,17 +283,6 @@ test('isLinkHeader, indexOfHeader and normalize', () => {
 
 const STATS_HEADER = ['Дата', 'Кава', 'Дріпи', 'Тонік', 'Блек', 'Фільтри', 'Сума'];
 const MONEY_HEADER = ['Кава, грн', 'Дріпи, грн', 'Coffee Tonic, грн', 'Black Coffee, грн', 'Фільтри V60, грн'];
-
-/** An order sheet with its name column and the two rows under the header that are not orders. */
-function namedOrder(name, first) {
-  return new FakeSheet(name, [
-    ["Ім'я та нік в Телеграмі", 'Посилання', 'Назва', 'Кількість', 'Сума'],
-    ['Або будь-яка інша інфа', '', '', '', ''],
-    ['', 'Посилання без помолу', '', '', ''],
-    [first, BEANS_LINK, 'Kenya', 1, 450],
-    ['someone', BEANS_LINK, 'Kenya', 1, 450],
-  ]);
-}
 
 function orderSheet(name, rows) {
   return new FakeSheet(name, [['Посилання', 'Назва', 'Кількість', 'Сума'], ...rows]);
@@ -425,52 +413,6 @@ test('fillStats', async (t) => {
       [...STATS_HEADER, ...MONEY_HEADER],
       ['05.06.2024', 0, 1, 24, 0, 0, 1656, 0, '', '', 0, 0],
       ['05.06.2023', 8, '', '', '', '', 1411],
-    ]);
-    assert.deepEqual(ui.alerts, ['Додано рядків: 0\nОновлено рядків: 1']);
-  });
-
-  await t.test('fills the empty Виконавець from the first row of the order', () => {
-    const stats = new FakeSheet('Статистика MH', [
-      [...STATS_HEADER, ...MONEY_HEADER],
-      ['21.12.2025', 2, 0, 0, 0, 0, 900, 900, 0, 0, 0, 0],
-      ['07.01.2026', 2, 0, 0, 0, 0, 900, 900, 0, 0, 0, 0],
-      ['19.01.2026', 2, 0, 0, 0, 0, 900, 900, 0, 0, 0, 0, 'by hand'],
-    ]);
-    const { ui } = useSpreadsheet([
-      stats,
-      namedOrder('21.12.2025', 'olegkukharuk'),
-      namedOrder('07.01.2026', ' oleg4erkassov '),
-      namedOrder('19.01.2026', 'other'),
-      namedOrder('20.11.2026', 'Anna Bell'),
-    ]);
-
-    fillStats();
-
-    assert.deepEqual(stats.values.map((row) => row[12]), [
-      'Виконавець', 'olegkukharuk', 'oleg4erkassov', 'by hand', 'Anna Bell',
-    ]);
-    assert.deepEqual(ui.alerts, ['Додано рядків: 1\nОновлено рядків: 2']);
-  });
-
-  await t.test('fills only the Виконавець of 2023, whose counts are kept by hand', () => {
-    const stats = new FakeSheet('Статистика MH', [
-      [...STATS_HEADER, ...MONEY_HEADER],
-      ['05.12.2022', 5, 0, 0, 0, 0, 1000, 1000, 0, 0, 0, 0],
-      ['04.01.2023', 5, 0, 0, 0, 0, 1000, 1000, 0, 0, 0, 0],
-    ]);
-    const { ui } = useSpreadsheet([
-      stats,
-      namedOrder('05.12.2022', 'old'),
-      namedOrder('04.01.2023', 'Олександр'),
-      namedOrder('20.01.2023', 'not listed'),
-    ]);
-
-    fillStats2023();
-
-    assert.deepEqual(stats.values, [
-      [...STATS_HEADER, ...MONEY_HEADER, 'Виконавець'],
-      ['05.12.2022', 5, 0, 0, 0, 0, 1000, 1000, 0, 0, 0, 0],
-      ['04.01.2023', 5, 0, 0, 0, 0, 1000, 1000, 0, 0, 0, 0, 'Олександр'],
     ]);
     assert.deepEqual(ui.alerts, ['Додано рядків: 0\nОновлено рядків: 1']);
   });

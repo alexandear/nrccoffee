@@ -12,8 +12,7 @@ function onOpen() {
       .createMenu('Оновити статистику MH')
       .addItem('2026', 'fillStats2026')
       .addItem('2025', 'fillStats2025')
-      .addItem('2024', 'fillStats2024')
-      .addItem('2023: лише виконавці', 'fillStats2023'))
+      .addItem('2024', 'fillStats2024'))
     .addItem('Впорядкувати аркуші', 'sortSheets')
     .addToUi();
 }
@@ -184,25 +183,18 @@ const STATS_MONEY = [
 ];
 const STATS_MONEY_COLUMN = 8;
 
-/** Rows of earlier years are kept by hand, and the script leaves them alone but for their "Виконавець". */
+/** Rows of earlier years are kept by hand, and the script leaves them alone. */
 const FIRST_STATS_YEAR = 2024;
-
-/** "Виконавець" of "Статистика MH", right of the "грн" columns, is filled from this year on. */
-const EXECUTOR_COLUMN = STATS_MONEY_COLUMN + STATS_MONEY.length;
-const EXECUTOR_HEADER = 'Виконавець';
-const FIRST_EXECUTOR_YEAR = 2023;
 
 // A menu item calls a function by name, without arguments, so each year needs its own.
 // One year at a time, because every order sheet together does not fit in the 6 minute limit.
 function fillStats2026() { fillStats(2026); }
 function fillStats2025() { fillStats(2025); }
 function fillStats2024() { fillStats(2024); }
-function fillStats2023() { fillStats(2023); }
 
 /**
  * Adds a row per order sheet of the year that "Статистика MH" does not list yet, in its place among the dates,
  * and recounts the rows it already lists. Without a year it reads every order sheet from FIRST_STATS_YEAR on.
- * It also fills the empty "Виконавець" of the rows it lists from FIRST_EXECUTOR_YEAR on, which reaches further back.
  */
 function fillStats(year) {
   const stats = SpreadsheetApp.getActive().getSheetByName(STATS_SHEET);
@@ -213,33 +205,23 @@ function fillStats(year) {
 
   // Two sheets can carry the same date, and the statistics keeps one row per date.
   const orders = {};
-  const executors = {};
   const sheets = SpreadsheetApp.getActive().getSheets();
   for (let i = 0; i < sheets.length; i++) {
     const name = sheets[i].getName();
     const date = sheetDate(name);
     if (!date || OTHER_SHOP_SHEET.test(name)) continue;
-    if (!executors[date] && isYearFrom(FIRST_EXECUTOR_YEAR, date, year)) {
-      const executor = orderExecutor(sheets[i]);
-      if (executor) executors[date] = executor;
-    }
-    if (!isYearFrom(FIRST_STATS_YEAR, date, year)) continue;
+    if (!isStatsYear(date, year)) continue;
     const order = summarizeOrder(sheets[i]);
     if (!order) continue;
     orders[date] = orders[date] ? addOrders(orders[date], order) : order;
   }
 
-  // Only columns A:L decide whether a row is empty; "Виконавець" is read on its own.
-  const range = stats.getRange(1, 1, stats.getLastRow(), EXECUTOR_COLUMN).getValues();
-  const values = range.map(function (row) { return row.slice(0, EXECUTOR_COLUMN - 1); });
-  const listedExecutors = range.map(function (row) { return row[EXECUTOR_COLUMN - 1]; });
+  const lastColumn = STATS_MONEY_COLUMN + STATS_MONEY.length - 1;
+  const values = stats.getRange(1, 1, stats.getLastRow(), lastColumn).getValues();
   for (let i = 0; i < STATS_MONEY.length; i++) {
     if (values[0][STATS_MONEY_COLUMN - 1 + i] === '') {
       stats.getRange(1, STATS_MONEY_COLUMN + i).setValue(STATS_MONEY[i][1]);
     }
-  }
-  if (listedExecutors[0] === '' && Object.keys(executors).length) {
-    stats.getRange(1, EXECUTOR_COLUMN).setValue(EXECUTOR_HEADER);
   }
 
   const listed = {};
@@ -247,18 +229,10 @@ function fillStats(year) {
   for (let row = 0; row < values.length; row++) {
     const date = normalizeDate(values[row][0]);
     listed[date] = true;
-    if (!date) continue;
-    let written = 0;
-    // A filled-in "Виконавець" is someone's own entry.
-    if (executors[date] && listedExecutors[row] === '') {
-      stats.getRange(row + 1, EXECUTOR_COLUMN).setValue(executors[date]);
-      written++;
-    }
+    if (!date || !isStatsYear(date, year)) continue;
     // Only the cells that differ, so that a formula which already gives the right value stays.
-    let counts = [];
-    if (isYearFrom(FIRST_STATS_YEAR, date, year)) {
-      counts = orders[date] ? statsRow(orders[date]) : zeroFilled(values[row]);
-    }
+    const counts = orders[date] ? statsRow(orders[date]) : zeroFilled(values[row]);
+    let written = 0;
     for (let i = 0; i < counts.length; i++) {
       if (counts[i] === null || values[row][i + 1] === counts[i]) continue;
       stats.getRange(row + 1, i + 2).setValue(counts[i]);
@@ -281,7 +255,6 @@ function fillStats(year) {
     for (let j = 0; j < counts.length; j++) {
       if (counts[j] !== null) stats.getRange(row, j + 2).setValue(counts[j]);
     }
-    if (executors[missing[i]]) stats.getRange(row, EXECUTOR_COLUMN).setValue(executors[missing[i]]);
   }
 
   // An old sheet whose rows do not add up leaves cells for a person to fill.
@@ -291,10 +264,10 @@ function fillStats(year) {
     (unknown.length ? '\nНе вдалося порахувати, заповніть вручну: ' + unknown.join(', ') : ''));
 }
 
-/** True for a date of that year, or of any year from firstYear on when there is none. */
-function isYearFrom(firstYear, date, year) {
+/** True for a date of that year, or of any year from FIRST_STATS_YEAR on when there is none. */
+function isStatsYear(date, year) {
   const dateYear = Number(date.slice(6));
-  return dateYear >= firstYear && (!year || dateYear === year);
+  return dateYear >= FIRST_STATS_YEAR && (!year || dateYear === year);
 }
 
 /**
@@ -393,20 +366,6 @@ function summarizeOrder(sheet) {
   const total = foreign ? null : labelledValue(values, 'всього грн');
   if (total !== null) order.sum = total;
   return order;
-}
-
-/** Who made the order: the "Ім'я та нік в Телеграмі" of its first row, or '' without one. */
-function orderExecutor(sheet) {
-  const values = sheet.getDataRange().getValues();
-  const headerRow = findHeaderRow(values);
-  if (headerRow < 0) return '';
-  const name = indexOfHeader(values[headerRow], function (cell) { return cell.indexOf('ім') === 0; });
-  if (name < 0) return '';
-  for (let row = Math.max(headerRow + 1, FIRST_ORDER_ROW - 1); row < values.length; row++) {
-    const cell = String(values[row][name]).trim();
-    if (cell) return cell;
-  }
-  return '';
 }
 
 /** A drip in a sheet older than April 2024, e.g. "MIX BOX", "Cyato Box", "Дріпи мікс" or ".../izidrip/mix-box/". */
