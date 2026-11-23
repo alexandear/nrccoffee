@@ -204,7 +204,7 @@ function orderSheet(name, rows) {
 }
 
 test('fillStats', async (t) => {
-  await t.test('appends the missing dates oldest first and merges sheets of one date', () => {
+  await t.test('appends the missing dates oldest first, recounts the listed ones and merges sheets of one date', () => {
     const stats = new FakeSheet('Статистика MH', [
       STATS_HEADER,
       ['', '=SUM(B3:B300)'],
@@ -228,14 +228,14 @@ test('fillStats', async (t) => {
     assert.deepEqual(stats.values, [
       [...STATS_HEADER, ...MONEY_HEADER],
       ['', '=SUM(B3:B300)'],
-      ['21.12.2025', 1, 0, 0, 0, 0, 450, 5, 0, 0, 0, 0],
-      [new Date(2025, 0, 5), 2, 0, 0, 0, 0, 900, 777, 0, 0, 0, 0],
+      ['21.12.2025', 5, 0, 0, 0, 0, 5, 5, 0, 0, 0, 0],
+      [new Date(2025, 0, 5), 5, 0, 0, 0, 0, 5, 5, 0, 0, 0, 0],
       ['01.02.2026', 0, 0, 0, 4, 1, 1000, 0, 0, 0, 800, 200],
       ['09.04.2026', 2, 10, 3, 0, 0, 4500, 900, 3000, 600, 0, 0],
     ]);
     assert.equal(stats.formats['5,1'], '@');
     assert.equal(stats.formats['6,1'], '@');
-    assert.deepEqual(ui.alerts, ['Додано рядків: 2\nДоповнено рядків: 2']);
+    assert.deepEqual(ui.alerts, ['Додано рядків: 2\nОновлено рядків: 2']);
   });
 
   await t.test('reads only the sheets of the given year', () => {
@@ -256,18 +256,18 @@ test('fillStats', async (t) => {
       ['21.12.2025', 1, 0, 0, 0, 0, 450],
       ['09.04.2026', 2, 0, 0, 0, 0, 900, 900, 0, 0, 0, 0],
     ]);
-    assert.deepEqual(ui.alerts, ['Додано рядків: 1\nДоповнено рядків: 0']);
+    assert.deepEqual(ui.alerts, ['Додано рядків: 1\nОновлено рядків: 0']);
   });
 
-  await t.test('nothing to add', () => {
+  await t.test('nothing to change', () => {
     const stats = new FakeSheet('Статистика MH', [
       [...STATS_HEADER, ...MONEY_HEADER],
       ['21.12.2025', 1, 0, 0, 0, 0, 450, 450, 0, 0, 0, 0],
     ]);
-    const { ui } = useSpreadsheet([stats, orderSheet('21.12.2025', [[BEANS_LINK, 'Kenya', 1, 1]])]);
+    const { ui } = useSpreadsheet([stats, orderSheet('21.12.2025', [[BEANS_LINK, 'Kenya', 1, 450]])]);
     fillStats();
     assert.deepEqual(stats.writes, []);
-    assert.deepEqual(ui.alerts, ['Додано рядків: 0\nДоповнено рядків: 0']);
+    assert.deepEqual(ui.alerts, ['Додано рядків: 0\nОновлено рядків: 0']);
   });
 
   await t.test('no statistics sheet', () => {

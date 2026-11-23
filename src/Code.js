@@ -196,7 +196,7 @@ function fillStats2022() { fillStats(2022); }
 
 /**
  * Appends a row per order sheet of the year that "Статистика MH" does not list yet, oldest first,
- * and fills the empty "грн" cells of the rows it already lists. Without a year it reads every order sheet.
+ * and recounts the rows it already lists. Without a year it reads every order sheet.
  */
 function fillStats(year) {
   const stats = SpreadsheetApp.getActive().getSheetByName(STATS_SHEET);
@@ -227,18 +227,20 @@ function fillStats(year) {
   }
 
   const listed = {};
-  let completed = 0;
+  let updated = 0;
   for (let row = 0; row < values.length; row++) {
     const date = normalizeDate(values[row][0]);
     listed[date] = true;
     if (!orders[date]) continue;
+    // Only the cells that differ, so that a formula which already gives the right value stays.
+    const counts = statsRow(orders[date]);
     let written = 0;
-    for (let i = 0; i < STATS_MONEY.length; i++) {
-      if (values[row][STATS_MONEY_COLUMN - 1 + i] !== '') continue;
-      stats.getRange(row + 1, STATS_MONEY_COLUMN + i).setValue(orders[date][STATS_MONEY[i][0] + 'Sum']);
+    for (let i = 0; i < counts.length; i++) {
+      if (values[row][i + 1] === counts[i]) continue;
+      stats.getRange(row + 1, i + 2).setValue(counts[i]);
       written++;
     }
-    if (written) completed++;
+    if (written) updated++;
   }
 
   const missing = Object.keys(orders).filter(function (date) { return !listed[date]; });
@@ -246,24 +248,27 @@ function fillStats(year) {
 
   let row = stats.getLastRow();
   for (let i = 0; i < missing.length; i++) {
-    const order = orders[missing[i]];
     row++;
     // One cell at a time, so that columns this script does not own keep their formulas.
     // "Дата" is day.month.year text, and a written date is parsed in the spreadsheet's locale,
     // which reads 05.12.2022 as the fifth of December or as the twelfth of May depending on it.
     stats.getRange(row, 1).setNumberFormat('@').setValue(missing[i]);
-    stats.getRange(row, 2).setValue(order.coffee);
-    stats.getRange(row, 3).setValue(order.drip);
-    stats.getRange(row, 4).setValue(order.tonic);
-    stats.getRange(row, 5).setValue(order.black);
-    stats.getRange(row, 6).setValue(order.filter);
-    stats.getRange(row, 7).setValue(order.sum);
-    for (let j = 0; j < STATS_MONEY.length; j++) {
-      stats.getRange(row, STATS_MONEY_COLUMN + j).setValue(order[STATS_MONEY[j][0] + 'Sum']);
+    const counts = statsRow(orders[missing[i]]);
+    for (let j = 0; j < counts.length; j++) {
+      stats.getRange(row, j + 2).setValue(counts[j]);
     }
   }
 
-  SpreadsheetApp.getUi().alert('Додано рядків: ' + missing.length + '\nДоповнено рядків: ' + completed);
+  SpreadsheetApp.getUi().alert('Додано рядків: ' + missing.length + '\nОновлено рядків: ' + updated);
+}
+
+/** Columns B:L of "Статистика MH" for one order: the counts, the total, then the "грн" of each category. */
+function statsRow(order) {
+  const row = [order.coffee, order.drip, order.tonic, order.black, order.filter, order.sum];
+  for (let i = 0; i < STATS_MONEY.length; i++) {
+    row.push(order[STATS_MONEY[i][0] + 'Sum']);
+  }
+  return row;
 }
 
 /**

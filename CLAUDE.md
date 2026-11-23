@@ -88,9 +88,10 @@ An order's total is the number under the "Всього грн" label, and the su
 that label.
 Dates live in sheet names, not in the sheets, and two sheets can carry the same date, so their counts are merged into
 one row.
-Columns H:L of "Статистика MH" hold the "Сума" of each category, and `fillStats` fills their empty cells on the rows it
-already lists too.
-Sheets older than April 2024 have no "Сума" column, so their rows keep those cells empty.
+Columns H:L of "Статистика MH" hold the "Сума" of each category.
+`fillStats` recounts columns B:L of every row it already lists, not only the empty cells, and writes just the cells
+whose value changed.
+Sheets older than April 2024 have no "Сума" column, so `fillStats` cannot read them and leaves their rows as they are.
 Together they can differ from "Сума, грн", which takes the "Всього грн" total after a discount.
 
 `sortSheets` orders the tabs newest first and keeps "Шаблон" and "Статистика MH" in front of them.
