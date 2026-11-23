@@ -220,6 +220,20 @@ test('summarizeOldOrder', async (t) => {
     });
   });
 
+  await t.test('a drip named in a note makes its bare link a drip too', () => {
+    const sheet = new FakeSheet('17.02.2024', [
+      OLD_HEADER,
+      ['Хто', 'Що', 'Примітка', 'Ціна оптова', '', 1, 2, 0, 3, 915],
+      ['A', 'https://madheadscoffee.com/p/ekEsWs4mIaq', '', 395, 915],
+      ['', 'https://madheadscoffee.com/p/Ae8oEACSG6', 'Дріпи мікс', 260],
+      ['B', 'https://madheadscoffee.com/p/Ae8oEACSG6', '', 260, 260],
+    ]);
+    assert.deepEqual(summarizeOrder(sheet), {
+      coffee: 1, drip: 2, tonic: 0, black: 0, filter: 0, sum: 915,
+      coffeeSum: 395, dripSum: 520, tonicSum: 0, blackSum: 0, filterSum: 0,
+    });
+  });
+
   await t.test('reads the 2022 layout with its labels at the bottom', () => {
     const sheet = new FakeSheet('22.08.2022', [
       ["Ім'я", 'Посилання на каву', 'Кількість', 'Кількість Coffee Tonic', 'Кількість BlackCoffee', 'Примітки', 'Ціна'],

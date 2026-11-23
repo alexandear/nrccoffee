@@ -363,8 +363,8 @@ function summarizeOrder(sheet) {
   return order;
 }
 
-/** A drip in a sheet older than April 2024, e.g. "MIX BOX", "Cyato Box" or ".../shop/izidrip/mix-box/". */
-const OLD_DRIP = /izidrip|\bbox\b/i;
+/** A drip in a sheet older than April 2024, e.g. "MIX BOX", "Cyato Box", "Дріпи мікс" or ".../izidrip/mix-box/". */
+const OLD_DRIP = /izidrip|\bbox\b|дріп/i;
 
 /** Labels of the counts in a sheet older than April 2024, each with its number in the cell under it. */
 const OLD_COUNT_LABELS = {
@@ -393,9 +393,9 @@ function summarizeOldOrder(values, headerRow) {
   const price = indexOfHeader(header, function (cell) { return cell === 'ціна, грн' || cell === 'ціна'; });
   const dripMark = indexOfHeader(header, function (cell) { return cell === 'пачок дріпів'; });
 
-  const sums = { coffee: 0, drip: 0, tonic: 0, black: 0, filter: 0 };
-  const rows = { coffee: 0, drip: 0, tonic: 0, black: 0, filter: 0 };
-  let priced = 0;
+  const lines = [];
+  // A bare link is the same product as that link on a row that names it.
+  const dripLinks = {};
   for (let row = headerRow + 1; price >= 0 && row < values.length; row++) {
     const url = link < 0 ? '' : String(values[row][link]).trim();
     const text = [name, note].map(function (column) {
@@ -404,10 +404,19 @@ function summarizeOldOrder(values, headerRow) {
     if (typeof values[row][price] !== 'number' || (!text && !url)) continue;
     let category = madHeadsCategory(text, url);
     if (category === 'coffee' && (OLD_DRIP.test(text + ' ' + url) || values[row][dripMark] === 1)) category = 'drip';
-    sums[category] += values[row][price];
-    rows[category]++;
-    priced += values[row][price];
+    if (category === 'drip' && url) dripLinks[url] = true;
+    lines.push({ category: category, url: url, price: values[row][price] });
   }
+
+  const sums = { coffee: 0, drip: 0, tonic: 0, black: 0, filter: 0 };
+  const rows = { coffee: 0, drip: 0, tonic: 0, black: 0, filter: 0 };
+  let priced = 0;
+  lines.forEach(function (line) {
+    const category = line.category === 'coffee' && dripLinks[line.url] ? 'drip' : line.category;
+    sums[category] += line.price;
+    rows[category]++;
+    priced += line.price;
+  });
 
   const order = { sum: sum };
   Object.keys(OLD_COUNT_LABELS).forEach(function (category) {

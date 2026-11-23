@@ -98,7 +98,8 @@ Sheets older than April 2024 have no "Сума" column, and `summarizeOldOrder` 
 Their counts and total are labels with the number under them: "Пачок кави", "Пачок дріпів", "Coffee Tonic",
 "BlackCoffee", and "Всього, грн" or, in 2022, "Всього".
 Each row holds its own price in "Ціна, грн" or "Ціна", and a category's "грн" is the sum of those prices.
-A drip there is named "Box", links to `/shop/izidrip/`, or has 1 in its "Пачок дріпів" cell.
+A drip there says "Box" or "дріп" in its name or notes, links to `/shop/izidrip/`, has 1 in its "Пачок дріпів" cell,
+or shares its link with a row of that sheet that is a drip.
 Some rows carry only a bare `/p/<id>` link, so when the prices miss the total or the drips found miss "Пачок дріпів",
 every "грн" of that sheet is unknown: `fillStats` leaves those cells alone and names the date in its report.
 A count without a label is 0 only when no row of its category exists, and unknown otherwise.
