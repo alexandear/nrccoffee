@@ -88,6 +88,10 @@ An order's total is the number under the "Всього грн" label, and the su
 that label.
 Dates live in sheet names, not in the sheets, and two sheets can carry the same date, so their counts are merged into
 one row.
+`fillStats` puts a new date in its place among the dates: into the empty row after the latest earlier date, as in the
+empty rows kept for a year, or into a row inserted there, which moves the later dates down.
+Only columns A:L decide whether a row is empty, because the monthly table in O:R shares the rows.
+An inserted row is a whole sheet row, so it leaves a gap in that table until `buildMonthlyChart` rebuilds it.
 Columns H:L of "Статистика MH" hold the "Сума" of each category.
 `fillStats` recounts columns B:L of every row it already lists, not only the empty cells, and writes just the cells
 whose value changed.

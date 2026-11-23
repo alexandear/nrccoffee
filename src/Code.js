@@ -195,7 +195,7 @@ function fillStats2023() { fillStats(2023); }
 function fillStats2022() { fillStats(2022); }
 
 /**
- * Appends a row per order sheet of the year that "Статистика MH" does not list yet, oldest first,
+ * Adds a row per order sheet of the year that "Статистика MH" does not list yet, in its place among the dates,
  * and recounts the rows it already lists. Without a year it reads every order sheet.
  */
 function fillStats(year) {
@@ -246,20 +246,48 @@ function fillStats(year) {
   const missing = Object.keys(orders).filter(function (date) { return !listed[date]; });
   missing.sort(function (a, b) { return sortableDate(a) < sortableDate(b) ? -1 : 1; });
 
-  let row = stats.getLastRow();
   for (let i = 0; i < missing.length; i++) {
-    row++;
+    const row = statsRowFor(stats, values, missing[i]);
+    const counts = statsRow(orders[missing[i]]);
+    values[row - 1] = [missing[i]].concat(counts);
     // One cell at a time, so that columns this script does not own keep their formulas.
     // "Дата" is day.month.year text, and a written date is parsed in the spreadsheet's locale,
     // which reads 05.12.2022 as the fifth of December or as the twelfth of May depending on it.
     stats.getRange(row, 1).setNumberFormat('@').setValue(missing[i]);
-    const counts = statsRow(orders[missing[i]]);
     for (let j = 0; j < counts.length; j++) {
       stats.getRange(row, j + 2).setValue(counts[j]);
     }
   }
 
   SpreadsheetApp.getUi().alert('Додано рядків: ' + missing.length + '\nОновлено рядків: ' + updated);
+}
+
+/**
+ * Sheet row for a date the statistics does not list: the row after the latest earlier date when that row is empty,
+ * as in the empty rows kept for a year, or a row inserted there, which moves the later dates down.
+ * values mirrors columns A:L and is kept in step with an inserted row.
+ */
+function statsRowFor(stats, values, date) {
+  // Without an earlier date, the new row goes above the first date, under the header and the totals.
+  let previous = -1;
+  let first = -1;
+  for (let row = 0; row < values.length; row++) {
+    const listed = normalizeDate(values[row][0]);
+    if (!listed) continue;
+    if (first < 0) first = row;
+    if (sortableDate(listed) < sortableDate(date)) previous = row;
+  }
+  if (previous < 0) previous = first < 0 ? values.length - 1 : first - 1;
+
+  const next = previous + 1;
+  if (next >= values.length || isEmptyRow(values[next])) return next + 1;
+  stats.insertRowAfter(previous + 1);
+  values.splice(next, 0, []);
+  return next + 1;
+}
+
+function isEmptyRow(row) {
+  return row.every(function (cell) { return cell === ''; });
 }
 
 /** Columns B:L of "Статистика MH" for one order: the counts, the total, then the "грн" of each category. */

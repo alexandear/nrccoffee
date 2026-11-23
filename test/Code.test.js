@@ -259,6 +259,60 @@ test('fillStats', async (t) => {
     assert.deepEqual(ui.alerts, ['Додано рядків: 1\nОновлено рядків: 0']);
   });
 
+  await t.test('fills the empty rows kept for a year', () => {
+    const stats = new FakeSheet('Статистика MH', [
+      [...STATS_HEADER, ...MONEY_HEADER],
+      ['Дата/Всього', '=SUM(B3:B300)'],
+      ['26.12.2024', 1],
+      [],
+      [],
+      [],
+      ['07.01.2026', 1],
+    ]);
+    useSpreadsheet([
+      stats,
+      orderSheet('05.06.2025', [[BEANS_LINK, 'Kenya', 2, 900]]),
+      orderSheet('10.01.2025', [[BEANS_LINK, 'Kenya', 1, 450]]),
+    ]);
+
+    fillStats(2025);
+
+    assert.deepEqual(stats.values, [
+      [...STATS_HEADER, ...MONEY_HEADER],
+      ['Дата/Всього', '=SUM(B3:B300)'],
+      ['26.12.2024', 1],
+      ['10.01.2025', 1, 0, 0, 0, 0, 450, 450, 0, 0, 0, 0],
+      ['05.06.2025', 2, 0, 0, 0, 0, 900, 900, 0, 0, 0, 0],
+      [],
+      ['07.01.2026', 1],
+    ]);
+    assert.equal(stats.inserted, undefined);
+  });
+
+  await t.test('inserts a row among the dates when there is no empty one', () => {
+    const stats = new FakeSheet('Статистика MH', [
+      [...STATS_HEADER, ...MONEY_HEADER],
+      ['Дата/Всього', '=SUM(B3:B300)'],
+      ['07.01.2026', 1],
+      ['20.01.2026', 1],
+    ]);
+    const { ui } = useSpreadsheet([
+      stats,
+      orderSheet('10.01.2026', [[BEANS_LINK, 'Kenya', 1, 450]]),
+      orderSheet('20.12.2025', [[BEANS_LINK, 'Kenya', 2, 900]]),
+      orderSheet('01.02.2026', [[BEANS_LINK, 'Kenya', 3, 1350]]),
+    ]);
+
+    fillStats();
+
+    assert.deepEqual(stats.values.map((row) => row[0]), [
+      'Дата', 'Дата/Всього', '20.12.2025', '07.01.2026', '10.01.2026', '20.01.2026', '01.02.2026',
+    ]);
+    assert.deepEqual(stats.values[4], ['10.01.2026', 1, 0, 0, 0, 0, 450, 450, 0, 0, 0, 0]);
+    assert.deepEqual(stats.inserted, [2, 4]);
+    assert.deepEqual(ui.alerts, ['Додано рядків: 3\nОновлено рядків: 0']);
+  });
+
   await t.test('nothing to change', () => {
     const stats = new FakeSheet('Статистика MH', [
       [...STATS_HEADER, ...MONEY_HEADER],

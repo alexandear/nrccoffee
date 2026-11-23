@@ -130,6 +130,13 @@ class FakeSheet {
   hideSheet() { this.hidden = true; return this; }
   getMaxRows() { return this.maxRows; }
 
+  insertRowAfter(row) {
+    while (this.values.length < row) this.values.push([]);
+    this.values.splice(row, 0, []);
+    this.inserted = (this.inserted || []).concat(row);
+    return this;
+  }
+
   getLastRow() {
     for (let row = this.values.length; row > 0; row--) {
       if (this.values[row - 1].some((cell) => cell !== '' && cell !== undefined)) return row;
