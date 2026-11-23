@@ -24,7 +24,16 @@ test('onOpen adds the Кава menu', () => {
     title: 'Кава',
     items: [
       ['Заповнити з посилань', 'fillActiveSheet'],
-      ['Оновити статистику MH', 'fillStats'],
+      {
+        title: 'Оновити статистику MH',
+        items: [
+          ['2026', 'fillStats2026'],
+          ['2025', 'fillStats2025'],
+          ['2024', 'fillStats2024'],
+          ['2023', 'fillStats2023'],
+          ['2022', 'fillStats2022'],
+        ],
+      },
       ['Графік по місяцях', 'buildMonthlyChart'],
       ['Впорядкувати аркуші', 'sortSheets'],
     ],
@@ -227,6 +236,27 @@ test('fillStats', async (t) => {
     assert.equal(stats.formats['5,1'], '@');
     assert.equal(stats.formats['6,1'], '@');
     assert.deepEqual(ui.alerts, ['Додано рядків: 2\nДоповнено рядків: 2']);
+  });
+
+  await t.test('reads only the sheets of the given year', () => {
+    const stats = new FakeSheet('Статистика MH', [
+      [...STATS_HEADER, ...MONEY_HEADER],
+      ['21.12.2025', 1, 0, 0, 0, 0, 450],
+    ]);
+    const { ui } = useSpreadsheet([
+      stats,
+      orderSheet('21.12.2025', [[BEANS_LINK, 'Kenya', 1, 450]]),
+      orderSheet('09.04.2026', [[BEANS_LINK, 'Kenya', 2, 900]]),
+    ]);
+
+    fillStats2026();
+
+    assert.deepEqual(stats.values, [
+      [...STATS_HEADER, ...MONEY_HEADER],
+      ['21.12.2025', 1, 0, 0, 0, 0, 450],
+      ['09.04.2026', 2, 0, 0, 0, 0, 900, 900, 0, 0, 0, 0],
+    ]);
+    assert.deepEqual(ui.alerts, ['Додано рядків: 1\nДоповнено рядків: 0']);
   });
 
   await t.test('nothing to add', () => {

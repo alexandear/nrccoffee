@@ -183,11 +183,13 @@ class FakeUi {
   alert(message) { this.alerts.push(message); }
 
   createMenu(title) {
+    const menus = this.menus;
     const menu = { title, items: [] };
-    this.menus.push(menu);
     const builder = {
+      menu,
       addItem(caption, functionName) { menu.items.push([caption, functionName]); return builder; },
-      addToUi() {},
+      addSubMenu(subMenu) { menu.items.push(subMenu.menu); return builder; },
+      addToUi() { menus.push(menu); },
     };
     return builder;
   }

@@ -75,6 +75,9 @@ sheets in that spreadsheet hold formulas in these columns.
 
 Rows are classified by their link, not by sheet name or column header: one existing sheet carries a MadHeads header over
 3champsroastery links.
+The **Кава** menu runs `fillStats` for one year at a time, from a submenu of `fillStats2026` to `fillStats2022`:
+reading every order sheet in one run does not fit in the 6 minute limit.
+A menu item calls a function by name and without arguments, which is why each year has its own.
 `fillStats` skips a whole sheet whose name says 3champs ("3champs", "3chmp", "3Champs"), even when it holds a MadHeads
 row or two, and drops rows linking to another shop from the sheets it does read.
 

@@ -8,7 +8,13 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Кава')
     .addItem('Заповнити з посилань', 'fillActiveSheet')
-    .addItem('Оновити статистику MH', 'fillStats')
+    .addSubMenu(SpreadsheetApp.getUi()
+      .createMenu('Оновити статистику MH')
+      .addItem('2026', 'fillStats2026')
+      .addItem('2025', 'fillStats2025')
+      .addItem('2024', 'fillStats2024')
+      .addItem('2023', 'fillStats2023')
+      .addItem('2022', 'fillStats2022'))
     .addItem('Графік по місяцях', 'buildMonthlyChart')
     .addItem('Впорядкувати аркуші', 'sortSheets')
     .addToUi();
@@ -180,11 +186,19 @@ const STATS_MONEY = [
 ];
 const STATS_MONEY_COLUMN = 8;
 
+// A menu item calls a function by name, without arguments, so each year needs its own.
+// One year at a time, because every order sheet together does not fit in the 6 minute limit.
+function fillStats2026() { fillStats(2026); }
+function fillStats2025() { fillStats(2025); }
+function fillStats2024() { fillStats(2024); }
+function fillStats2023() { fillStats(2023); }
+function fillStats2022() { fillStats(2022); }
+
 /**
- * Appends a row per order sheet that "Статистика MH" does not list yet, oldest first,
- * and fills the empty "грн" cells of the rows it already lists.
+ * Appends a row per order sheet of the year that "Статистика MH" does not list yet, oldest first,
+ * and fills the empty "грн" cells of the rows it already lists. Without a year it reads every order sheet.
  */
-function fillStats() {
+function fillStats(year) {
   const stats = SpreadsheetApp.getActive().getSheetByName(STATS_SHEET);
   if (!stats) {
     SpreadsheetApp.getUi().alert('Аркуша "' + STATS_SHEET + '" немає.');
@@ -198,6 +212,7 @@ function fillStats() {
     const name = sheets[i].getName();
     const date = sheetDate(name);
     if (!date || OTHER_SHOP_SHEET.test(name)) continue;
+    if (year && date.slice(6) !== String(year)) continue;
     const order = summarizeOrder(sheets[i]);
     if (!order) continue;
     orders[date] = orders[date] ? addOrders(orders[date], order) : order;
